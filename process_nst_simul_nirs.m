@@ -15,9 +15,15 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
 
+
+    sProcess.options.sim_name.Comment = 'Simulation Name: ';
+    sProcess.options.sim_name.Type    = 'text';
+    sProcess.options.sim_name.Value   = '';
+
+
     sProcess.options.SNR.Comment = 'SNR';
     sProcess.options.SNR.Type    = 'value';
-    sProcess.options.SNR.Value   = {2,'db',0};
+    sProcess.options.SNR.Value   = {0.5,'db',2};
 
         % === SCOUTS
     sProcess.options.scouts.Comment = '';
@@ -38,9 +44,10 @@ end
 
 %% ===== RUN =====
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
-
+    OutputFiles = {};
     sStudy = bst_get('Study', sInputs.iStudy);
     OPTIONS = sProcess.options;
+
 
     % Load data
     sData = in_bst_data(sInputs(1).FileName);
@@ -59,98 +66,136 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % generate activation aptch 
 
     ROI  =  sProcess.options.scouts.Value;
-    iAtlas = find(strcmp( {sCortex.Atlas.Name},ROI{1}));
-    iRois  = find(contains({sCortex.Atlas(iAtlas).Scouts.Label} , ROI{2} ));
+    Atlas_name = ROI{1};
+    iAtlas = find(strcmp( {sCortex.Atlas.Name}, Atlas_name));
 
-    ROI_select = sCortex.Atlas(iAtlas).Scouts(iRois);
-    
-    activation = struct(); 
-    activation.Label = ROI_select(1).Label;
-    activation.Vertices = ROI_select(1).Vertices;
-    activation.ampmode = 'unif';
-
-    activation.options = struct(); 
-    activation.options.type = 'oscilation';
-    activation.options.freq = 0.1; %0.006;
-    activation.options.SNR =   sProcess.options.SNR.Value{1};
-    activation.options.peak_time = sData.Time(round(length(sData.Time)/2)) ; %peak at the middle of the time window
-    activation.options.duration = 40; %seconds
-
-   
-    [data_simul,groundTruth,SNR_est]  = simulNirs(sCortex, nirs_head_model, activation, ChannelMat,sData, OPTIONS);
-
-    iStudy = db_add_condition(sInputs.SubjectName, 'Simulation');
+    iStudy = db_add_condition(sInputs.SubjectName, sProcess.options.sim_name.Value);
     sStudy = bst_get('Study', iStudy);
     
     % Save channel definition
     [tmp, iChannelStudy] = bst_get('ChannelForStudy', iStudy);
     db_set_channel(iChannelStudy, ChannelMat, 2, 0);
 
-    sDataOut = db_template('data');
-    sDataOut.F            = data_simul; 
-    sDataOut.Comment      = sprintf('simul | SNR = %ddb',activation.options.SNR) ;
-    sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
-    sDataOut.Time         = sData.Time;
-    sDataOut.DataType     = 'recordings'; 
-    sDataOut.nAvg         = 1;
-    sDataOut.Events       = [];
-    sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
-    sDataOut.DisplayUnits = 'delta OD';
+    for iROI = 1:length(ROI{2})
+        ROI_name = ROI{2}{iROI};
+        iRois  = find(contains({sCortex.Atlas(iAtlas).Scouts.Label} , ROI_name ));
+    
+        ROI_select = sCortex.Atlas(iAtlas).Scouts(iRois);
+        
+        activation = struct(); 
+        activation.Label = ROI_select(1).Label;
+        activation.Vertices = ROI_select(1).Vertices;
+        activation.ampmode = 'unif';
 
-    % Generate a new file name in the same folder
-    OutputFile_data = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_sim');
-    sDataOut.FileName = file_short(OutputFile_data);
-    bst_save(OutputFile_data, sDataOut, 'v7');
-    % Register in database
-    db_add_data(iStudy, OutputFile_data, sDataOut);
-    OutputFiles{1} = OutputFile_data;
+        activation.options = struct(); 
+        activation.options.type = 'oscilation';
+        activation.options.freq = 0.1; %0.006;
+        activation.options.SNR =   sProcess.options.SNR.Value{1};
+        activation.options.peak_time = sData.Time(round(length(sData.Time)/2)) ; %peak at the middle of the time window
+        activation.options.duration = 40; %seconds
+    
+       
+        [data_simul,groundTruth,groundTruthHead,SNR_est]  = simulNirs(sCortex, nirs_head_model, activation, ChannelMat,sData, OPTIONS);
+    
 
-    sDataOut = db_template('data');
-    sDataOut.F            = SNR_est; 
-    sDataOut.Comment      = [sInputs(1).Comment ' | SNR'];
-    sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
-    sDataOut.Time         = [0];
-    sDataOut.DataType     = 'recordings'; 
-    sDataOut.nAvg         = 1;
-    sDataOut.Events       = [];
-    sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
-    sDataOut.DisplayUnits = 'db';
+        sDataOut = db_template('data');
+        sDataOut.F            = data_simul; 
+        sDataOut.Comment      = sprintf('simul | %s | %s  SNR =  %.2fdb',Atlas_name,ROI_name, activation.options.SNR) ;
+        sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
+        sDataOut.Time         = sData.Time;
+        sDataOut.DataType     = 'recordings'; 
+        sDataOut.nAvg         = 1;
+        sDataOut.Events       = [];
+        sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
+        sDataOut.DisplayUnits = 'delta OD';
+    
+        % Generate a new file name in the same folder
+        OutputFile_data = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_sim');
+        sDataOut.FileName = file_short(OutputFile_data);
+        bst_save(OutputFile_data, sDataOut, 'v7');
+        % Register in database
+        db_add_data(iStudy, OutputFile_data, sDataOut);
+        OutputFiles{end+1} = OutputFile_data;
 
-    % Generate a new file name in the same folder
-    OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_snr');
-    sDataOut.FileName = file_short(OutputFile);
-    bst_save(OutputFile, sDataOut, 'v7');
-    % Register in database
-    db_add_data(iStudy, OutputFile, sDataOut);
-    OutputFiles{2} = OutputFile;
+        ResultsMat = db_template('resultsmat');
+        ResultsMat.Comment       = 'Ground Truth';
+        ResultsMat.DataFile      = file_short(OutputFile_data);
+        ResultsMat.Function      = '';
+        ResultsMat.Time          = sData.Time;
+        ResultsMat.ImageGridAmp  = groundTruth;
+        ResultsMat.ChannelFlag   = [];
+        ResultsMat.GoodChannel   = [];
+        ResultsMat.DisplayUnits  = 'delta OD';
+        ResultsMat.SurfaceFile   = nirs_head_model.SurfaceFile;
+        ResultsMat.simulation_options    = activation;
+        % Save new file structure
+        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'results_ground_truth_simul');
+        bst_save(OutputFile, ResultsMat, 'v6');
+        % Update database
+        db_add_data(iStudy, OutputFile, ResultsMat);
+        OutputFiles{end+5} = OutputFile;
 
+        sDataOut = db_template('data');
+        sDataOut.F            = groundTruthHead; 
+        sDataOut.Comment      = sprintf('Truth | %s | %s  SNR =  %.2fdb',Atlas_name,ROI_name, activation.options.SNR) ;
+        sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
+        sDataOut.Time         = sData.Time;
+        sDataOut.DataType     = 'recordings'; 
+        sDataOut.nAvg         = 1;
+        sDataOut.Events       = [];
+        sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
+        sDataOut.DisplayUnits = 'delta OD';
 
+        % Generate a new file name in the same folder
+        OutputFile_data = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_sim');
+        sDataOut.FileName = file_short(OutputFile_data);
+        bst_save(OutputFile_data, sDataOut, 'v7');
+        % Register in database
+        db_add_data(iStudy, OutputFile_data, sDataOut);
+        OutputFiles{end+2} = OutputFile_data;
 
-    OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), ['results_ground_truth_simul']);
+        ResultsMat = db_template('resultsmat');
+        ResultsMat.Comment       = 'Ground Truth';
+        ResultsMat.DataFile      = file_short(OutputFile_data);
+        ResultsMat.Function      = '';
+        ResultsMat.Time          = sData.Time;
+        ResultsMat.ImageGridAmp  = groundTruth;
+        ResultsMat.ChannelFlag   = [];
+        ResultsMat.GoodChannel   = [];
+        ResultsMat.DisplayUnits  = 'delta OD';
+        ResultsMat.SurfaceFile   = nirs_head_model.SurfaceFile;
+        ResultsMat.simulation_options    = activation;
+        % Save new file structure
+        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'results_ground_truth_simul');
+        bst_save(OutputFile, ResultsMat, 'v6');
+        % Update database
+        db_add_data(iStudy, OutputFile, ResultsMat);
+        OutputFiles{end+3} = OutputFile;
 
-    % ===== CREATE FILE STRUCTURE =====
-    ResultsMat = db_template('resultsmat');
-    ResultsMat.Comment       = 'Ground Truth';
-    ResultsMat.DataFile      =  file_short(OutputFile_data);
-    ResultsMat.HeadModelFile = sStudy.HeadModel(sStudy.iHeadModel).FileName;
-    ResultsMat.Function      = '';
-    ResultsMat.Time          = sData.Time;
-    ResultsMat.ImageGridAmp  = groundTruth;
-    ResultsMat.ChannelFlag   = [];
-    ResultsMat.GoodChannel   = [];
-    ResultsMat.DisplayUnits  = 'delta OD';
-    ResultsMat.SurfaceFile   = nirs_head_model.SurfaceFile;
-    % Save new file structure
-    bst_save(OutputFile, ResultsMat, 'v6');
-    % Update database
-    db_add_data(iStudy, OutputFile, ResultsMat);
-    OutputFiles{3} = OutputFile;
+        sDataOut = db_template('data');
+        sDataOut.F            = SNR_est; 
+        sDataOut.Comment      = sprintf('SNR | %s | %s  SNR = %.2fdb',Atlas_name,ROI_name, activation.options.SNR) ;
+        sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
+        sDataOut.Time         = [0];
+        sDataOut.DataType     = 'recordings'; 
+        sDataOut.nAvg         = 1;
+        sDataOut.Events       = [];
+        sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
+        sDataOut.DisplayUnits = 'db';
 
+        % Generate a new file name in the same folder
+        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'data_snr');
+        sDataOut.FileName = file_short(OutputFile);
+        bst_save(OutputFile, sDataOut, 'v7');
+        % Register in database
+        db_add_data(iStudy, OutputFile, sDataOut);
+        OutputFiles{end+4} = OutputFile;
+    end
 
 end
 
 
-function [data_simul,groundTruth,SNR_est]  = simulNirs(sCortex, head_model,activation, ChannelMat, noise , OPTIONS )
+function [data_simul,groundTruth, groundTruthHead, SNR_est]  = simulNirs(sCortex, head_model,activation, ChannelMat, noise , OPTIONS )
 
 
     iwl = 1;
@@ -179,15 +224,15 @@ function [data_simul,groundTruth,SNR_est]  = simulNirs(sCortex, head_model,activ
     y = cos(2*pi*activation.options.freq*Tc) .* ...
                 exp( - Tc .^ 2 ./ ( 2* sigma^2));
     env = [ exp( - Tc .^ 2 ./ ( 2* sigma^2))  ;  -exp( - Tc .^ 2 ./ ( 2* sigma^2))];
-    figure;
-    subplot(121)
-    
-    plot(Tc, [y; env])
-    title('Time course')
-    subplot(122)
-    periodogram(y,[],length(y),10)
-    xline(activation.options.freq)
-    xlim([ 0 0.1])
+    % figure;
+    % subplot(121)
+    % 
+    % plot(Tc, [y; env])
+    % title('Time course')
+    % subplot(122)
+    % periodogram(y,[],length(y),10)
+    % xline(activation.options.freq)
+    % xlim([ 0 0.1])
 
     nodes = zeros(1,size(sCortex.Vertices,1));
     nodes(activation.Vertices) = 1; 
@@ -206,6 +251,9 @@ function [data_simul,groundTruth,SNR_est]  = simulNirs(sCortex, head_model,activ
 
     data_simul = noise.F;
     data_simul(selected_chans, :) =  k*data_head + noise_data ;
+    
+    groundTruthHead = zeros(size(noise.F));
+    groundTruthHead(selected_chans, :) =  k*data_head;
     
 
     groundTruth = zeros(size( sCortex.Vertices,1), length(Time));
