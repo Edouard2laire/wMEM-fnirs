@@ -1,9 +1,9 @@
-function run_MEM(filename)
+function run_MEM(data, options_file)
     
     addpath(genpath('~/.brainstorm/plugins/nirstorm/nirstorm-master/bst_plugin/'));
 
-    sOption = load(filename).sOutput;
-    output_file = strrep(filename,'in','out');
+    sOption = load(data).sOutput;
+    output_file = strrep(data,'in','out');
     output_folder = fileparts(output_file);
     if ~exist(output_folder)
         mkdir(output_folder)
@@ -12,7 +12,12 @@ function run_MEM(filename)
     ChannelMat = sOption.ChannelMat;
     cortex = sOption.cortex;
     nirs_head_model = sOption.nirs_head_model;
-    OPTIONS = sOption.OPTIONS;
+    OPTIONS = jsondecode(fileread(options_file));
+    OPTIONS.DataFile = sOption.OPTIONS.DataFile;
+    OPTIONS.DataTypes = sOption.OPTIONS.DataTypes;
+    OPTIONS.ResultFile = sOption.OPTIONS.ResultFile;
+    OPTIONS.HeadModelFile = sOption.OPTIONS.HeadModelFile;
+    OPTIONS.Comment       =  sOption.OPTIONS.Comment;
     sDataIn = sOption.sDataIn;
 
     nb_nodes = size(cortex.Vertices, 1);
@@ -22,8 +27,20 @@ function run_MEM(filename)
     HM.SurfaceFile = nirs_head_model.SurfaceFile;
 
     %% define the reconstruction FOV
-    thresh_dis2cortex       = OPTIONS.thresh_dis2cortex;
+    thresh_dis2cortex       = OPTIONS.thresh_dis2cortex / 100;
     valid_nodes             = nst_headmodel_get_FOV(ChannelMat, cortex, thresh_dis2cortex,sDataIn.ChannelFlag );
+
+
+    %% estimate the neighborhood order for cMEM  (goal: # of clusters ~= # of good channels) 
+    if OPTIONS.auto_neighborhood_order
+        swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(1))];
+        n_channel = sum(strcmpi({ChannelMat.Channel.Group}, swl) & (sDataIn.ChannelFlag>0)');
+    
+        nbo = process_nst_cmem('estimate_nbo',cortex, valid_nodes, n_channel, 1 );
+        fprintf('MEM > Using a NBO of %d\n', nbo); 
+        OPTIONS.MEMpaneloptions.clustering.neighborhood_order = nbo;
+    end
+
 
     OPTIONS.MEMpaneloptions.optional.cortex_vertices = cortex.Vertices(valid_nodes, :); 
     HM.vertex_connectivity = cortex.VertConn(valid_nodes, valid_nodes);
@@ -53,7 +70,7 @@ function run_MEM(filename)
 
         %% launch MEM (cMEM only in current version)
         MEMoptions = prepOptions(OPTIONS);
-        Results = be_main_call(HM, MEMoptions);
+        [Results, ~] = be_main_call(HM, MEMoptions);
 
         %cMEM results
         grid_amp = zeros(nb_nodes, nb_samples); 
@@ -86,12 +103,13 @@ function MEMoptions = prepOptions(OPTIONS)
     MEMoptions.optional.HeadModelFile                   =   OPTIONS.HeadModelFile;
     MEMoptions.optional.Comment                         =   OPTIONS.Comment;
     MEMoptions.optional.normalization                   =   'fixed';
-    
+
     % automatic
     MEMoptions.automatic.stand_alone                    =   1;
     MEMoptions.automatic.GoodChannel                    =   OPTIONS.GoodChannel;
     MEMoptions.automatic.Comment                        =   OPTIONS.Comment;
 
+    MEMoptions.wavelet.selected_scales                  =   MEMoptions.wavelet.selected_scales'; 
     MEMoptions.wavelet.single_box                       =   0;
     
     % solver

@@ -109,18 +109,6 @@ function sOutput = export(OPTIONS,ChannelMat, sDataIn )
     nirs_head_model = in_bst_headmodel(OPTIONS.HeadModelFile);
     cortex = in_tess_bst(nirs_head_model.SurfaceFile);
 
-    thresh_dis2cortex       = OPTIONS.thresh_dis2cortex;
-    valid_nodes             = nst_headmodel_get_FOV(ChannelMat, cortex, thresh_dis2cortex,sDataIn.ChannelFlag );
-
-
-    %% estimate the neighborhood order for cMEM  (goal: # of clusters ~= # of good channels) 
-    if OPTIONS.flag_auto_nbo
-        swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(1))];
-        n_channel = sum(strcmpi({ChannelMat.Channel.Group}, swl) & (sDataIn.ChannelFlag>0)');
-    
-        nbo = process_nst_cmem('estimate_nbo',cortex, valid_nodes, n_channel, 1 );
-        OPTIONS.MEMpaneloptions.clustering.neighborhood_order = nbo;
-    end
 
     
     sOutput = struct( 'OPTIONS', OPTIONS, ...
