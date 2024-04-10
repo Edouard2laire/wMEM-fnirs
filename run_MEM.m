@@ -1,14 +1,25 @@
 function run_MEM(data, options_file)
+    rng("shuffle")
     
-    addpath(genpath('~/.brainstorm/plugins/nirstorm/nirstorm-master/bst_plugin/'));
+    fprintf('Using ')
+    system('hostname');
+    disp('')
+    fprintf('Data file : %s \n', data)
+    fprintf('Option file : %s \n', options_file)
 
+
+    addpath(genpath('~/.brainstorm/plugins/nirstorm/nirstorm-master/bst_plugin/'));
+    addpath(genpath('~/.brainstorm/plugins/brainentropy/best-brainstorm-master/best'));
+    addpath(genpath('/NAS/home/edelaire/Documents/software/brainstorm3'))
+        
     sOption = load(data).sOutput;
     output_file = strrep(data,'in','out');
     output_folder = fileparts(output_file);
     if ~exist(output_folder)
         mkdir(output_folder)
     end
-
+    
+    % Loading options 
     ChannelMat = sOption.ChannelMat;
     cortex = sOption.cortex;
     nirs_head_model = sOption.nirs_head_model;
@@ -18,20 +29,43 @@ function run_MEM(data, options_file)
     OPTIONS.ResultFile = sOption.OPTIONS.ResultFile;
     OPTIONS.HeadModelFile = sOption.OPTIONS.HeadModelFile;
     OPTIONS.Comment       =  sOption.OPTIONS.Comment;
+    sStudy = sOption.OPTIONS.sStudy; 
     sDataIn = sOption.sDataIn;
+    fprintf('Data  : %s \n', sDataIn.Comment)
+    fprintf('--------------------------------\n')
 
     nb_nodes = size(cortex.Vertices, 1);
     nb_samples = length(sDataIn.Time);
     nb_wavelengths  = length(ChannelMat.Nirs.Wavelengths);
 
     HM.SurfaceFile = nirs_head_model.SurfaceFile;
+    
+    % try to start parralel port
+    if isempty(gcp('nocreate'))
+        try
+            local_cluster = parcluster('Processes');
 
-    %% define the reconstruction FOV
+            % Modify the JobStorageLocation to $SLURM_TMPDIR
+            slurm_tmp_dir = fullfile('~/Documents/Project/wMEM-fnirs/slurm', char(floor(26*rand(1, 10)) + 65));
+            if ~exist(slurm_tmp_dir)
+                mkdir(slurm_tmp_dir)
+            end
+            local_cluster.JobStorageLocation = slurm_tmp_dir;
+            parpool(local_cluster,  16);
+            
+        catch
+            disp(' MEM > FAILED TO OPEN PARALLEL PORT ! THX CRAPPY perform')
+            OPTIONS.MEMpaneloptions.solver.parallel_matlab = 0;
+        end
+    end
+
+    % define the reconstruction FOV
     thresh_dis2cortex       = OPTIONS.thresh_dis2cortex / 100;
     valid_nodes             = nst_headmodel_get_FOV(ChannelMat, cortex, thresh_dis2cortex,sDataIn.ChannelFlag );
 
 
-    %% estimate the neighborhood order for cMEM  (goal: # of clusters ~= # of good channels) 
+    % estimate the neighborhood order (goal: # of clusters ~= # of good channels) 
+    fprintf('MEM > Estimating neighborhood order\n'); 
     if OPTIONS.auto_neighborhood_order
         swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(1))];
         n_channel = sum(strcmpi({ChannelMat.Channel.Group}, swl) & (sDataIn.ChannelFlag>0)');
@@ -49,9 +83,11 @@ function run_MEM(data, options_file)
     diagnosis   = [];
 
     for iwl=1:nb_wavelengths
+        
         swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(iwl))];
         selected_chans = strcmpi({ChannelMat.Channel.Group}, swl) & (sDataIn.ChannelFlag>0)';
-        
+        fprintf('MEM > Computing MEM for wavelength %s\n', swl); 
+
         OPTIONS.GoodChannel     = ones(sum(selected_chans), 1);
         OPTIONS.ChannelFlag     = ones(sum(selected_chans), 1);
         OPTIONS.Channel         = ChannelMat.Channel(selected_chans);
@@ -80,8 +116,20 @@ function run_MEM(data, options_file)
         Results.MEMoptions.automatic.valid_nodes = valid_nodes;
         diagnosis          = [diagnosis Results.MEMoptions.automatic];
     end
+
+    hb_extinctions = nst_get_hb_extinctions(ChannelMat.Nirs.Wavelengths);
+    hb_extinctions = hb_extinctions ./10;% mm-1.mole-1.L
+
+    Hb_sources = zeros(nb_nodes, 3, nb_samples);
+    for idx=1:length(valid_nodes)
+        inode = valid_nodes(idx);
+        Hb_sources(inode, 1:2, :) = pinv(hb_extinctions) * ...
+                                    squeeze(dOD_sources(inode, :, :));
     
-    save(output_file,{"dOD_sources","diagnosis"});
+    end
+    Hb_sources(:,3,:) = squeeze(sum(Hb_sources, 2));
+
+    save(output_file, 'sStudy', 'OPTIONS', 'dOD_sources','Hb_sources', 'diagnosis');
 end
 
 

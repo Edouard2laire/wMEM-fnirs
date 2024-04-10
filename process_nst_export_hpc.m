@@ -28,7 +28,7 @@ end
 %% ===== GET DESCRIPTION =====
 function sProcess = GetDescription() %#ok<DEFNU>
     % Description the process
-    sProcess.Comment     = 'Compute sources: BEst';
+    sProcess.Comment     = 'Export data to HPC';
     sProcess.Category    = 'Custom';
     sProcess.SubGroup    = {'NIRS', 'Simulation'};
     sProcess.Index       = 3004;
@@ -39,20 +39,6 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nMinFiles   = 1;
 
 
-
-    % Definition of the options for source reconstruction
-
-    sProcess.options.mem.Comment = {'panel_brainentropy', 'Source estimation options: '};
-    sProcess.options.mem.Type    = 'editpref';
-    sProcess.options.mem.Value   = be_main();
-
-    sProcess.options.thresh_dis2cortex.Comment = 'Reconstruction Field of view (distance to montage border)';
-    sProcess.options.thresh_dis2cortex.Type    = 'value';
-    sProcess.options.thresh_dis2cortex.Value   = {3, 'cm',2};
-    
-    sProcess.options.auto_neighborhood_order.Comment = 'Set neighborhood order automatically (default)';
-    sProcess.options.auto_neighborhood_order.Type    = 'checkbox';
-    sProcess.options.auto_neighborhood_order.Value   = 1;
 end
 %% ===== FORMAT COMMENT =====
 function Comment = FormatComment(sProcess) %#ok<DEFNU>
@@ -63,10 +49,13 @@ end
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
 
     OutputFiles = {};
-    folder_out = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs', string(datetime('today')) ,'in');
-    if ~exist(folder_out)
-        mkdir(folder_out)
-    end
+
+    token = char(floor(26*rand(1, 10)) + 65); 
+    script_path = '/Users/edelaire1/Documents/Project/wMEM-fnirs';
+
+    folder_out = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs', token );
+    mkdir(fullfile(folder_out,'in'));
+
     
     %% Load head model
     sStudy = bst_get('Study', sInputs.iStudy);
@@ -77,44 +66,66 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     
     nirs_head_model = in_bst_headmodel(sStudy.HeadModel(sStudy.iHeadModel).FileName);
     nirs_head_model.FileName = sStudy.HeadModel(sStudy.iHeadModel).FileName;
-
-    if strcmp(sInputs.FileType, 'data')     % Imported data structure
-        sDataIn = in_bst_data(sInputs(1).FileName);
-    elseif strcmp(sInputs.FileType, 'raw')  % Continuous data file
-        sDataIn = in_bst(sInputs(1).FileName, [], 1, 1, 'no');
-    end
     
-    ChannelMat = in_bst_channel(sInputs(1).ChannelFile);
-    if ~isfield(ChannelMat.Nirs, 'Wavelengths')
-        bst_error(['cMEM source reconstruction works only for dOD data ' ... 
-                   ' (eg do not use MBLL prior to this process)']);
-        return;
-    end
-    sProcess.options.NoiseCov_recompute.Value   = 1;
-    OPTIONS         = process_nst_cmem('getOptions',sProcess,nirs_head_model, sInputs(1).FileName);
-
-
-    %% Run MEM
-    sOutput = export(OPTIONS,ChannelMat, sDataIn );
-    [~,sOutput_name] = fileparts(sInputs(1).FileName);
-    save(fullfile(folder_out, sprintf('%s.mat', sOutput_name)), "sOutput");
-
-
-end
-
-
-function sOutput = export(OPTIONS,ChannelMat, sDataIn )
-
-
-    nirs_head_model = in_bst_headmodel(OPTIONS.HeadModelFile);
     cortex = in_tess_bst(nirs_head_model.SurfaceFile);
-
-
     
-    sOutput = struct( 'OPTIONS', OPTIONS, ...
-                       'ChannelMat',ChannelMat, ...
-                       'nirs_head_model', nirs_head_model, ...
-                       'cortex', cortex, ...
-                       'sDataIn', sDataIn) ; 
+    fID = fopen(fullfile(script_path, sprintf('launch_script_%s.sh', token)), 'w+');
+
+    for iInput = 1:length(sInputs)
+        if strcmp(sInputs(iInput).FileType, 'data')     % Imported data structure
+            sDataIn = in_bst_data(sInputs(iInput).FileName);
+        elseif strcmp(sInputs(iInput).FileType, 'raw')  % Continuous data file
+            sDataIn = in_bst(sInputs(iInput).FileName, [], 1, 1, 'no');
+        end
+    
+        ChannelMat = in_bst_channel(sInputs(iInput).ChannelFile);
+        if ~isfield(ChannelMat.Nirs, 'Wavelengths')
+            bst_error(['cMEM source reconstruction works only for dOD data ' ... 
+                       ' (eg do not use MBLL prior to this process)']);
+            return;
+        end
+
+        OPTIONS                 = struct();
+        OPTIONS.sStudy          = sStudy;
+        OPTIONS.Comment         = 'MEM';
+        OPTIONS.DataFile        = sInputs(iInput).FileName;
+        OPTIONS.ResultFile      = [];
+        OPTIONS.HeadModelFile   = nirs_head_model.FileName;
+        OPTIONS.FunctionName    = 'mem';
+        OPTIONS.DataTypes = {'NIRS'};
+        OPTIONS.NoiseCov = [];
+    
+        sOutput = struct(  'OPTIONS', OPTIONS, ...
+                           'ChannelMat',ChannelMat, ...
+                           'nirs_head_model', nirs_head_model, ...
+                           'cortex', cortex, ...
+                           'sDataIn', sDataIn) ; 
+    
+        %% Run MEM
+        [~,sOutput_name] = fileparts(sInputs(iInput).FileName);
+        save(fullfile(folder_out, 'in', sprintf('%s.mat', sOutput_name)), "sOutput");
+
+        fprintf(fID, 'qsub -j y -o logs/%s.txt -pe smp 16 -S /bin/bash -m abe -M edouard.delaire@concordia.ca -cwd -q matlab.q -N MEM_%s ./start_hpc.sh %s %s \n', ...
+                       sprintf('%d_%s',iInput,token), sprintf('%d_%s',iInput,token), fullfile(token, 'in', sprintf('%s.mat', sOutput_name)),  'wMEM_options.json');
+    end
+    fclose(fID);
+
+     fID = fopen(fullfile(folder_out, 'README.txt'), 'w+');
+     fprintf(fID, 'Simulation created on %s \n', char(datetime('today')));
+     fprintf(fID, 'To tranfert the data to concordia, execute\n');
+     fprintf(fID, 'rsync --progress --update --recursive ~/Documents/Project/wMEM-fnirs/%s edelaire@perf-imglab07:/NAS/home/edelaire/Documents/Project/wMEM-fnirs/  \n', token);
+     fprintf(fID, 'rsync --progress --update --recursive ~/Documents/Project/wMEM-fnirs/%s edelaire@perf-imglab07:/NAS/home/edelaire/Documents/Project/wMEM-fnirs/  \n', sprintf('launch_script_%s.sh', token));
+
+    fprintf(fID, 'To launch the script, execute\n');
+    fprintf(fID, 'cd ~/Documents/Project/wMEM-fnirs\n');
+    fprintf(fID, '%s\n', fullfile(script_path, sprintf('launch_script_%s.sh', token)));
+
+    fprintf(fID, 'To collect the data from concordia, execute\n');
+    fprintf(fID, 'rsync --progress --update --recursive edelaire@perf-imglab07:/NAS/home/edelaire/Documents/Project/wMEM-fnirs/%s  ~/Documents/Project/wMEM-fnirs \n', token);
+    fprintf(fID, 'rsync --progress --update --recursive edelaire@perf-imglab07:/NAS/home/edelaire/Documents/Project/wMEM-fnirs/logs  ~/Documents/Project/wMEM-fnirs \n');
+
+    fclose(fID);
 
 end
+
+
