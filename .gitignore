@@ -4,3 +4,6 @@
 *.mat
 
 .DS_Store
+
+logs/
+data/
