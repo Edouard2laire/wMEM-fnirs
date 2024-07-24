@@ -63,17 +63,22 @@ end
 sParticipant = readtable(participants_file, 'FileType','text');
 
 % ===== CREATE PROTOCOL =====
-ProtocolName = 'TutorialNIRSTORM';
+ProtocolName = 'wMEM-nirs';
 
 % Start brainstorm without the GUI
 if ~brainstorm('status')
     brainstorm nogui
 end
 
-% Delete existing protocol
-gui_brainstorm('DeleteProtocol', ProtocolName);
-% Create new protocol
-gui_brainstorm('CreateProtocol', ProtocolName, 0, 0);
+iProtocol = bst_get('Protocol', ProtocolName);
+if isempty(iProtocol)
+    % Create new protocol
+    gui_brainstorm('CreateProtocol', ProtocolName, 0, 0);
+else
+    % Load protocol
+    gui_brainstorm('SetCurrentProtocol', iProtocol);
+end
+
 
 % Start a new report
 bst_report('Start');
