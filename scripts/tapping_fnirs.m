@@ -1,7 +1,6 @@
 function  tapping_fnirs(tutorial_dir, reports_dir)
-% TUTORIAL_NIRSTORM_2024: Script that reproduces the results of the
-% nirstorm article
-%
+% tapping_fnirs: Script to PERFORM wMEM on the tapping dataset
+% Dataset: https://osf.io/md54y/?view_only=0d8ad17d1e1449b5ad36864eeb3424ed 
 % CORRESPONDING ONLINE TUTORIALS:
 %     https://neuroimage.usc.edu/brainstorm/Tutorials/NIRSTORM
 %
