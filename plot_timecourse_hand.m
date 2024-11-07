@@ -3,20 +3,35 @@ sFilesGRP       = {};
 
 SubjectName   = {'sub-01'};
 
-sFilesGRP{1}  = {...
-    'sub-01/sub-01_task-tapping_run-01_dOD_band_scr_copy/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbO_240722_1928.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_dOD_band_scr_copy/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbR_240722_1928.mat'};
+% sFilesGRP{1}  = {...
+%     'sub-01/sub-01_task-tapping_run-01_pipeline-strict/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbO_240903_1402.mat', ...
+%     'sub-01/sub-01_task-tapping_run-01_pipeline-strict/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbR_240903_1402.mat'};
+
+
+% sFilesGRP{2} = {...
+%     'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbO_240903_1404.mat', ...
+%     'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbR_240903_1404.mat'};
+
+sFilesGRP{1} = {...
+    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMNE_sources_-_HbO_240903_1406_WAvg.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMNE_sources_-_HbR_240903_1406_WAvg.mat'};
 
 sFilesGRP{2} = {...
-    'sub-01/sub-01_task-tapping_run-01_dOD_band_scr_copy/results_NIRS_wMNE_sources_-_HbO_240722_2202.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_dOD_band_scr_copy/results_NIRS_wMNE_sources_-_HbR_240722_2202.mat'};
+    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j3__4__5__6__7__8__9)_|_HbO_240903_1415_WAvg.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j3__4__5__6__7__8__9)_|_HbR_240903_1416_WAvg.mat'};
+
+
+sFilesGRP{3} = {...
+    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j6__7__8__9)_|_HbO_240903_1419_WAvg.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j6__7__8__9)_|_HbR_240903_1419_WAvg.mat'};
+
 
 
 ROI_label     = {'hand'};
 t_snapshot                  = [13];
 
 %% Options
-fig_label                   = {'cMEM','MNE', 'wMEM(all scale)', 'wMEM (selected scale)'}; 
+fig_label                   = {'cMEM (filter)', 'cMEM','MNE', 'wMEM(all scale)', 'wMEM (selected scale)'}; 
 %fig_label                   = {'OLD','NEW'}; 
 
 fig_ROI_label               = {'Motor'};
@@ -25,11 +40,10 @@ y_lim                       = [-50 100];
 colors                      = {'g','r','b'};
 options.same_scale          = 1;
 options.do_normalize        = 0;
-options.variance = 3; % 0 = no var, 1 = spatial variance, 2 = trials variance (std error)
-options.show_sleep          = 0;
+options.variance            = 0; % 0 = no var, 1 = spatial variance, 2 = trials variance (std error)
 options.save_colbar         = 1;
-options.fig_path            = '/Users/edelaire1/Documents/Etude/04_PHD/Article/NIRSTORM/NIRSTORM_neurophotonics/figure_v9/material/fig6';
-options.save_fig            = 2 ; % 0: No save, 1 save Time course, 2 Save Time-course anad Figure, 3, save only figure
+options.fig_path            = '/Users/edelaire1/Documents/Etude/04_PHD/Abstract/2024_fNIRS_UK/figure_tapping';
+options.save_fig            = 1 ; % 0: No save, 1 save Time course, 2 Save Time-course anad Figure, 3, save only figure
 options.save_fig_method     = 'saveas'; % 'saveas', 'export_fig'
 options.export_fig_dpi      = 90;
 
@@ -40,17 +54,23 @@ fontsize  = 20;
 
 sSubject    = bst_get('Subject',SubjectName{1});
 sCortex     = in_tess_bst(sSubject.Surface(sSubject.iCortex).FileName);
-Scouts      = sCortex.Atlas(strcmp({sCortex.Atlas.Name},'scout_hand')).Scouts;
+Scouts      = sCortex.Atlas(strcmp({sCortex.Atlas.Name},'User scouts')).Scouts;
 
 h = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
 hold on;
 norm_factor = 1;
 idx_subplot = 1;
-color_red = autumn(10);
-color_red = color_red(1:3:10,:);
 
-color_blue =  parula(10);
-color_blue = color_blue(1:3:10,:);
+
+
+color_red = [215,48,39 ; ...
+             252,141,89; ...
+             254,224,144] ./ 255;
+
+
+color_blue =  [69,117,180 ;...
+               145,191,219; ...
+                224,243,248] ./ 255;
 
 for k = 1:length(sFilesGRP)
     
@@ -104,53 +124,17 @@ for k = 1:length(sFilesGRP)
         elseif options.variance == 2 
 
         else
-            std_mem_hbo = [];
-            std_mem_hbr = [];
+            std_mem_hbo = zeros(1,length(time));
+            std_mem_hbr = zeros(1,length(time));
         end
 
-        stdshade_group(mem_hbo,0.25,color_red(k,:) ,time,[], std_mem_hbo);
-        stdshade_group(mem_hbr,0.25,color_blue(k,:) ,time,[],std_mem_hbr);
+        shadedErrorBar(time, mean(mem_hbo),  std_mem_hbo,'lineProps' , {'LineWidth',LineWidth, 'Color',color_red(k,:)});
+        shadedErrorBar(time, mean(mem_hbr),  std_mem_hbo,'lineProps' , {'LineWidth',LineWidth , 'Color',color_blue(k,:)});
         
+            
         ylim(y_lim) 
         y_lim_rec = ylim(gca);
-        if 0 && ~isempty(motion)               
-            for i_motion = 1:size(motion.times,2)
-                %rectangle('Position',[motion.times(1,i_motion), y_lim_rec(1) , motion.times(2,i_motion) - motion.times(1,i_motion),diff(y_lim_rec)],'FaceColor',[1 0 0 0.2],'LineStyle','none')
-                plot(motion.times(:,i_motion)', -0.3*[1,1],'dr-','LineWidth',LineWidth);
-            end
-        end
-        if ~isempty(Seizure)   
-            for i_Seizure = 1:size(Seizure.times,2)
-                plot(Seizure.times(:,i_Seizure)', -0.2*[1,1],'db-','LineWidth',LineWidth);
-                %rectangle('Position',[Seizure.times(1,i_Seizure), y_lim_rec(1) , Seizure.times(2,i_Seizure) - Seizure.times(1,i_Seizure),diff(y_lim_rec)],'FaceColor',[0 1 0 0.2],'LineStyle','none')
-            end
-        end
-        if options.show_sleep 
-            if ~isempty(wake)   
-                for i_wake = 1:size(wake.times,2)
-                    plot(wake.times(:,i_wake)', -0.5*[1,1],'-','LineWidth',LineWidth,'Color',validatecolor(uint8([228,26,28])));
-                    %rectangle('Position',[Seizure.times(1,i_Seizure), y_lim_rec(1) , Seizure.times(2,i_Seizure) - Seizure.times(1,i_Seizure),diff(y_lim_rec)],'FaceColor',[0 1 0 0.2],'LineStyle','none')
-                end
-            end
-            if ~isempty(N1)   
-                for i_wake = 1:size(N1.times,2)
-                    plot(N1.times(:,i_wake)', -0.5*[1,1],'-','LineWidth',LineWidth,'Color',validatecolor(uint8([55,126,184])));
-                    %rectangle('Position',[Seizure.times(1,i_Seizure), y_lim_rec(1) , Seizure.times(2,i_Seizure) - Seizure.times(1,i_Seizure),diff(y_lim_rec)],'FaceColor',[0 1 0 0.2],'LineStyle','none')
-                end
-            end
-            if ~isempty(N2)   
-                for i_wake = 1:size(N2.times,2)
-                    plot(N2.times(:,i_wake)', -0.5*[1,1],'-','LineWidth',LineWidth,'Color',validatecolor(uint8([77,175,74])));
-                    %rectangle('Position',[Seizure.times(1,i_Seizure), y_lim_rec(1) , Seizure.times(2,i_Seizure) - Seizure.times(1,i_Seizure),diff(y_lim_rec)],'FaceColor',[0 1 0 0.2],'LineStyle','none')
-                end
-            end
-            if ~isempty(N3)   
-                for i_wake = 1:size(N3.times,2)
-                    plot(N3.times(:,i_wake)', -0.5*[1,1],'-','LineWidth',LineWidth,'Color',validatecolor(uint8([152,78,163])));
-                    %rectangle('Position',[Seizure.times(1,i_Seizure), y_lim_rec(1) , Seizure.times(2,i_Seizure) - Seizure.times(1,i_Seizure),diff(y_lim_rec)],'FaceColor',[0 1 0 0.2],'LineStyle','none')
-                end
-            end
-        end
+
         %title(sprintf('%s - %s',fig_ROI_label{i}, fig_label{k}))
         
         xlim(toi);
@@ -166,7 +150,7 @@ for k = 1:length(sFilesGRP)
         if i == 1
             ylabel('Amplitude');
         end    
-        plot(time, zeros(1,length(time)), 'k--');
+        plot(time, zeros(1,length(time)), 'k--','LineWidth',LineWidth);
         
        for kl=1:length(t_snapshot)
             line([t_snapshot(kl) t_snapshot(kl)], ylim(gca))
@@ -179,44 +163,47 @@ end
 if options.save_fig == 1 || options.save_fig == 2 
     nst_save_figure(sprintf('%s/%s_%s.png',options.fig_path,SubjectName{:},'timecourse'), options, h)
 end
-for k = 1:length(sFilesGRP)
-    sFiles= sFilesGRP{k};
 
-    hHbO = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
-                                     sFiles{1}, 'NIRS', 'NewFigure');
-                                 
-    hHbR = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
-                                      sFiles{2}, 'NIRS', 'NewFigure');
-                                 
-    hFigSurfData{k} = {hHbO, hHbR};
-end
-
-if options.save_fig == 2 || options.save_fig == 3 
-
-    
-    input('Make figure ready HbO') 
-
-    for k = 1:length(t_snapshot)
-
-        panel_time('SetCurrentTime',  t_snapshot(k))
-
-        for i_file = 1:length(sFilesGRP)
-            tmp = hFigSurfData{i_file}; 
-            out_figure_image(tmp{1}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbO',t_snapshot(k)))
-        end
-    end
-
-    input('Make figure ready HbR') 
-
-    for k = 1:length(t_snapshot)
-
-        panel_time('SetCurrentTime',  t_snapshot(k))
-
-        for i_file = 1:length(sFilesGRP)
-            tmp = hFigSurfData{i_file}; 
-            out_figure_image(tmp{2}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbR',t_snapshot(k)))
-        end
-    end
-    
-
-end
+% 
+% 
+% for k = 1:length(sFilesGRP)
+%     sFiles= sFilesGRP{k};
+% 
+%     hHbO = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
+%                                      sFiles{1}, 'NIRS', 'NewFigure');
+% 
+%     hHbR = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
+%                                       sFiles{2}, 'NIRS', 'NewFigure');
+% 
+%     hFigSurfData{k} = {hHbO, hHbR};
+% end
+% 
+% if options.save_fig == 2 || options.save_fig == 3 
+% 
+% 
+%     input('Make figure ready HbO') 
+% 
+%     for k = 1:length(t_snapshot)
+% 
+%         panel_time('SetCurrentTime',  t_snapshot(k))
+% 
+%         for i_file = 1:length(sFilesGRP)
+%             tmp = hFigSurfData{i_file}; 
+%             out_figure_image(tmp{1}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbO',t_snapshot(k)))
+%         end
+%     end
+% 
+%     input('Make figure ready HbR') 
+% 
+%     for k = 1:length(t_snapshot)
+% 
+%         panel_time('SetCurrentTime',  t_snapshot(k))
+% 
+%         for i_file = 1:length(sFilesGRP)
+%             tmp = hFigSurfData{i_file}; 
+%             out_figure_image(tmp{2}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbR',t_snapshot(k)))
+%         end
+%     end
+% 
+% 
+% end

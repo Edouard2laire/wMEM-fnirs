@@ -74,12 +74,16 @@ function OutputFile = Run(sProcess, sInput)
     %% ===== RUN =====function OutputFile = Run(sProcess, sInput)
     % Load input file
     sGroundTruth = in_bst_data(sInput(strcmp({sInput.Comment},'Ground Truth')).FileName);
+    
     sCortex = load(file_fullpath(sGroundTruth.SurfaceFile));
+    [rH, lH] = tess_hemisplit(sCortex);
+
     simulation_options = sGroundTruth.simulation_options; 
     
     % save information about the simulation 
     iMaps = find(~strcmp({sInput.Comment},'Ground Truth'));
-    all_results = table('Size',[length(iMaps) 9],'VariableType',{'string','double','double','double','string','double','double','double','double'},'VariableNames',{'ROI', 'SNR','active_area','time','method','DLE','SD','AUC','correlation'});
+    all_results = table('Size',[length(iMaps) 10],'VariableType',{'string','double','double','double','string','double','double','double','double','double'},'VariableNames',{'ROI', 'SNR','active_area','time','method','rsa','DLE','SD','AUC','correlation'});
+    
     for iFile = 1:length(iMaps)
         results = table();
         sData = in_bst_data(sInput(iMaps(iFile)).FileName);
@@ -91,13 +95,28 @@ function OutputFile = Run(sProcess, sInput)
         [M,timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
         results.time = sGroundTruth.Time(timeZeroSample);
         vertex_active = find(sGroundTruth.ImageGridAmp(:,timeZeroSample));
+        isLeftScout   = isempty(intersect(rH, vertex_active));
+
         
         d = min(nst_pdist(sCortex.Vertices*1000,sCortex.Vertices(vertex_active,:)*1000),[],2);
         
-        results.method  = string(sData.Comment);
+        if contains (sData.Comment,'wMNE')
+            results.method  = "MNE";
+        else
+            results.method  = "wMEM";
+        end
         valide_nodes = find(~all(abs(sData.ImageGridAmp) == 0,2));
     
-    
+        if isLeftScout 
+            valide_nodes = intersect(valide_nodes, lH);
+            
+            results.RSA = 100 * sum(sData.ImageGridAmp(rH,timeZeroSample).^2) / sum(sData.ImageGridAmp(:,timeZeroSample).^2);
+
+        else
+            valide_nodes = intersect(valide_nodes, rH);
+            results.RSA = 100 * sum(sData.ImageGridAmp(lH,timeZeroSample).^2) / sum(sData.ImageGridAmp(:,timeZeroSample).^2);
+        end
+        
         % Compute spatial metrics (at the time of the peak)
         data = abs(sData.ImageGridAmp(valide_nodes,timeZeroSample));
         gt = zeros(size(sData.ImageGridAmp,1),1);
