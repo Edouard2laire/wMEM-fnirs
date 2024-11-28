@@ -71,136 +71,179 @@ end
 
 function OutputFile = Run(sProcess, sInput)
     OutputFile = '';
-    %% ===== RUN =====function OutputFile = Run(sProcess, sInput)
-    % Load input file
-    sGroundTruth = in_bst_data(sInput(strcmp({sInput.Comment},'Ground Truth')).FileName);
+    global GlobalData;
+
+    % Load subject
+    sSubject = bst_get('Subject', sInput.SubjectName);
+    % identify inputs
+    iMaps = find(~strcmp({sInput.Comment},'Ground Truth'));
+    iTruth = find(strcmp({sInput.Comment},'Ground Truth'));
     
-    sCortex = load(file_fullpath(sGroundTruth.SurfaceFile));
-    [rH, lH] = tess_hemisplit(sCortex);
+    % Identify FOV from map 1
+    sData           = in_bst_results(sInput(iMaps(1)).FileName);
+    idx_FOV         = find(~all(abs(sData.ImageGridAmp) == 0,2));
+
+
+    % Load ground truth
+    sGroundTruth = in_bst_data(sInput(iTruth).FileName);
+
+    % Load surface
+    sCortex     = in_tess_bst(sGroundTruth.SurfaceFile);
+
+    % Prepare new surface - only FOV
+
+    iRemoveVert = setdiff(1:size(sCortex.Vertices,1), idx_FOV);
+    [sCortex.Vertices, sCortex.Faces, sCortex.Atlas] = tess_remove_vert(sCortex.Vertices, sCortex.Faces, iRemoveVert, sCortex.Atlas);
+    sCortex.VertConn = sCortex.VertConn(idx_FOV,idx_FOV);
+    [rH, lH]    = tess_hemisplit(sCortex);
+    
+
+    % prepare new ground truth map based on the FOV
 
     simulation_options = sGroundTruth.simulation_options; 
+    Jtheo = zeros(size(sGroundTruth.ImageGridAmp,1),1);
+    Jtheo(simulation_options.Vertices) = 1;
+
+    Jtheo       = Jtheo(idx_FOV);
+    idx_truth   = find(Jtheo); 
+
+    % Measure depth
+    sScalp = in_tess_bst(sSubject.Surface(sSubject.iScalp).FileName);
+    depth = 1000 * min(nst_pdist(sCortex.Vertices(idx_truth,:),sScalp.Vertices),[],2);
+
+
+    [M,timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
+    sTruth             =  sGroundTruth.ImageGridAmp(idx_FOV,:);
+
+    % Estimate lateralization of the scout 
+    isLeftScout     = ~isempty(intersect(lH, idx_truth));
+    isRightScout     = ~isempty(intersect(rH, idx_truth));
+
+    assert(xor(isLeftScout,isRightScout),'The scout cannot be bilateral');
+
+    % Estimate distance from all the vertex to the ROI, in milimeter
+    distances = 1000 * min(nst_pdist(sCortex.Vertices,sCortex.Vertices(idx_truth,:)),[],2);
+
+    % GlobalData = rmfield(GlobalData , 'ROC_Struct') to clear 
+    if isfield(GlobalData, 'ROC_Struct') && ~isempty(GlobalData.ROC_Struct)
+        ROC_Struct = GlobalData.ROC_Struct;
+    else
+        ROC_Struct = prepare_ROC(sCortex);
+        GlobalData.ROC_Struct = ROC_Struct;
+    end
     
     % save information about the simulation 
-    iMaps = find(~strcmp({sInput.Comment},'Ground Truth'));
-    all_results = table('Size',[length(iMaps) 10],'VariableType',{'string','double','double','double','string','double','double','double','double','double'},'VariableNames',{'ROI', 'SNR','active_area','time','method','rsa','DLE','SD','AUC','correlation'});
+    % all_results = table('Size',[length(iMaps) 10],'VariableType',{'string','double','double','double','string','double','double','double','double','double'},'VariableNames',{'ROI', 'SNR','active_area','time','method','rsa','DLE','SD','AUC','correlation'});
     
     for iFile = 1:length(iMaps)
-        results = table();
-        sData = in_bst_data(sInput(iMaps(iFile)).FileName);
-        results.ROI = string(simulation_options.Label);
-        results.SNR  = simulation_options.options.SNR;
-        results.active_area = length(simulation_options.Vertices);
-    
-        
-        [M,timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
-        results.time = sGroundTruth.Time(timeZeroSample);
-        vertex_active = find(sGroundTruth.ImageGridAmp(:,timeZeroSample));
-        isLeftScout   = isempty(intersect(rH, vertex_active));
 
-        
-        d = min(nst_pdist(sCortex.Vertices*1000,sCortex.Vertices(vertex_active,:)*1000),[],2);
-        
+        results = table();
+
+        sData           = in_bst_results(sInput(iMaps(iFile)).FileName);
+        sMap            = sData.ImageGridAmp(idx_FOV,:);
+        sMap_max        = sData.ImageGridAmp(idx_FOV,timeZeroSample);
+
+
+        results.ROI     = string(simulation_options.Label);
+        results.depth   = mean(depth);
+        results.SNR     = simulation_options.options.SNR;
+        results.NVertex = length(idx_truth);
+        results.time    = sData.Time(timeZeroSample);
+
         if contains (sData.Comment,'wMNE')
             results.method  = "MNE";
         else
             results.method  = "wMEM";
         end
-        valide_nodes = find(~all(abs(sData.ImageGridAmp) == 0,2));
-    
-        if isLeftScout 
-            valide_nodes = intersect(valide_nodes, lH);
-            
-            results.RSA = 100 * sum(sData.ImageGridAmp(rH,timeZeroSample).^2) / sum(sData.ImageGridAmp(:,timeZeroSample).^2);
-
-        else
-            valide_nodes = intersect(valide_nodes, rH);
-            results.RSA = 100 * sum(sData.ImageGridAmp(lH,timeZeroSample).^2) / sum(sData.ImageGridAmp(:,timeZeroSample).^2);
-        end
         
         % Compute spatial metrics (at the time of the peak)
-        data = abs(sData.ImageGridAmp(valide_nodes,timeZeroSample));
-        gt = zeros(size(sData.ImageGridAmp,1),1);
-        gt(vertex_active) = 1;
-        tActiveVertex = find(gt(valide_nodes)); 
-        tInactiveVertex = setdiff(1:length(valide_nodes),tActiveVertex)';
-    
-        distances = d(valide_nodes); 
+
+        % Estimate the ratio of spurius activity :  energy on
+        % controlateral side / total energy
+
+        sMap_max_left = sMap_max(lH);
+        sMap_max_right = sMap_max(rH);
+        
+        total_energy = sum(sMap_max_right.^2) + sum(sMap_max_left.^2);
+        if isLeftScout 
+            results.RSA = 100 * sum(sMap_max_right.^2) / total_energy;
+        else
+            results.RSA = 100 * sum(sMap_max_left.^2) / total_energy;
+        end
+        
+        % Remove data from the controlateral side - check with CG
+        % if isLeftScout 
+        %     sMap_max(rH) = 0;
+        % else
+        %     sMap_max(lH) = 0;
+        % end 
     
         % 1. DLE --  Distance from the max vertex to the ground truth
-        [~,maxVert] = max(abs(data));
+        [~,maxVert] = max(abs(sMap_max));
         results.DLE = distances(maxVert);
             
         % 2. Spatial Dispersion
-        results.SD = sqrt(sum(distances.^2 .* data.^2) / sum(data.^2));
+        results.SD = sqrt(sum(distances.^2 .* sMap_max.^2) / sum(sMap_max.^2));
         
         % 3. AUC 
-        
-        data = data ./ max(data);
-        thresholds = linspace(0, 1, 5000);
+        [Res_summary, Res_close_summary, Res_far_summary  ] =  Compute_ALL_AUC_global(0, ...
+                                                                                 Jtheo, sMap_max, 1, ...
+                                                                                 ROC_Struct.VoisinsOA, ...
+                                                                                 ROC_Struct.mycluster, ...
+                                                                                 ROC_Struct.nb_resampling,...
+                                                                                 ROC_Struct.ordreVoisinage,...
+                                                                                 ROC_Struct.thresholds, ...
+                                                                                 []);
+        [~,idx_30per] = min(abs(Res_summary.thresholds - 0.3));
 
-        % Following code use resampling for the AUC. to check with
-        % christophe
-        % VoisinsOA = adj2Voisins(sCortex.VertConn(valide_nodes,valide_nodes));
-        % nClusters = 10;
-        % isRandom = 1;
-        % VERBOSE = 0;
-        % Labels = tess_cluster(sCortex.VertConn(valide_nodes,valide_nodes), nClusters, isRandom, VERBOSE);
-        % 
-        % mycluster = cell(1,nClusters);
-        % for i = 1:nClusters
-        %     mycluster{i} = find(Labels == i);
-        % end
-        % 
-        % Jtheo = zeros(size(data));
-        % Jtheo(tActiveVertex) = 1;
-        % 
-        % nb_resampling = 100;
-        % ordreVoisinage = 8;
-        % [Res_summary,Res_close_summary,Res_far_summary  ] =  Compute_ALL_AUC_global(0, ...
-        %                                                                         Jtheo, data, 1, ...
-        %                                                                         VoisinsOA, ...
-        %                                                                         mycluster, ...
-        %                                                                         nb_resampling,...
-        %                                                                         ordreVoisinage,...
-        %                                                                         thresholds, ...
-        %                                                                         []);
+        results.auc_mean        = Res_summary.AUC_mean;
+        results.auc_mean_sd     = Res_summary.AUC_std;
 
+        results.auc_close       = Res_close_summary.AUC_mean;
+        results.auc_close_sd    = Res_close_summary.AUC_std;
 
-        sensitivity  = zeros(1,length(thresholds));
-        specificity  = zeros(1,length(thresholds));
-        TP  = zeros(1,length(thresholds));
-        FP  = zeros(1,length(thresholds));
-        TN  = zeros(1,length(thresholds));
-        FN  = zeros(1,length(thresholds));
-    
-        for iThreshold = 1:length(thresholds)
-            active_vertex = find(abs(data) >= thresholds(iThreshold)); 
-            inactive_vertex = find(abs(data) < thresholds(iThreshold)); 
-    
-            TP(iThreshold) = length(intersect(tActiveVertex, active_vertex));
-            FP(iThreshold) = length(setdiff(active_vertex,tActiveVertex));
-            
-            TN(iThreshold) = length(intersect(tInactiveVertex, inactive_vertex ));
-            FN(iThreshold) = length(setdiff(inactive_vertex,tInactiveVertex));
-    
-            sensitivity(iThreshold)  = TP(iThreshold) / (TP(iThreshold) + FN(iThreshold));
-            specificity(iThreshold)  = TN(iThreshold) / (TN(iThreshold) + FP(iThreshold));
-        end
-        
-        [~,idx] = sort(1-specificity);
-        results.AUC = trapz(1-specificity(idx),sensitivity(idx));
-        %figure; subplot(121); plot(thresholds, [TP; FP; TN; FN]);  subplot(122); plot(1-specificity(idx),sensitivity(idx)); 
-    
+        results.auc_far         = Res_far_summary.AUC_mean;
+        results.auc_far_sd      = Res_far_summary.AUC_std;
+
+        results.ppv_30          = Res_summary.ppv_mean(idx_30per);
+        results.npv_30          = Res_summary.npv_mean(idx_30per);
+        results.dice_30         = Res_summary.dice_mean(idx_30per);
+        results.sensitivity_30  = Res_summary.sensitivity_mean(idx_30per);
+        results.specificity_30  = Res_summary.specificity_mean(idx_30per);
+
         %2. Compute the temporal metrics 
-        all_corr = zeros(1, length(vertex_active));
-        for iVertex = 1:length(vertex_active)
-            Corr = corrcoef(sGroundTruth.ImageGridAmp(vertex_active(iVertex), :), sData.ImageGridAmp(vertex_active(iVertex), :) );
+        all_corr = zeros(1, length(idx_truth));
+        for iVertex = 1:length(idx_truth)
+            Corr = corrcoef(sTruth(idx_truth(iVertex), :), sMap(idx_truth(iVertex), :) );
             all_corr(iVertex) = Corr(1,2);
         end
         results.correlation = median(all_corr);
         all_results(iFile,:) = results;
-    end
 
+    end
     %3. Save the results 
     writetable(all_results,sProcess.options.textFile.Value{1},'WriteMode','Append')
+end
+
+
+
+
+function [output] = prepare_ROC(sCortex)
+    
+    output = struct();
+    output.VoisinsOA   = adj2Voisins(sCortex.VertConn);
+    output.nClusters   = 30;
+    output.isRandom    = 1;
+    output.VERBOSE     = 0;
+    output.Labels      = tess_cluster(sCortex.VertConn, output.nClusters, output.isRandom, output.VERBOSE);
+    
+    mycluster = cell(1,output.nClusters);
+    for i = 1:output.nClusters
+        mycluster{i} = find(output.Labels == i);
+    end
+    output.mycluster = mycluster;
+
+    output.nb_resampling    = 50;
+    output.ordreVoisinage   = 5;
+    output.thresholds = linspace(0, 1, 100);
 end

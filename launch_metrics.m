@@ -6,7 +6,7 @@ sFiles = bst_process('CallProcess', 'process_select_search', [], [], ...
 
 [~,index] = sortrows({sFiles.DataFile}.'); sFiles = sFiles(index(end:-1:1)); clear index
 
-RawFiles = {'/Users/edelaire1/Documents/Project/wMEM-fnirs/data/metrics/metrics_simul_0.25db.txt'};
+RawFiles = {'/Users/edelaire1/Documents/Project/wMEM-fnirs/data/metrics/metrics_simul_0.25db_new.txt'};
 
 % Start a new report
 bst_report('Start', sFiles);
