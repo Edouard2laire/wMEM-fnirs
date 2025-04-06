@@ -36,12 +36,6 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nMinFiles   = 1;
     sProcess.isSeparator = 0;
     
-    % === MAX DIST
-    sProcess.options.maxDist.Comment = ['Maximum distance for the ' ...
-                                'computation of the metrics (0: disable)'];
-    sProcess.options.maxDist.Type    = 'value';
-    sProcess.options.maxDist.Value   = {40, 'mm', 0};
-    
     
     % Definition of the options
     % === TARGET
@@ -54,7 +48,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
         'ExportData', ...                  % LastUsedDir: {ImportData,ImportChannel,ImportAnat,ExportChannel,ExportData,ExportAnat,ExportProtocol,ExportImage,ExportScript}
         'single', ...                      % Selection mode: {single,multiple}
         'files', ...                        % Selection mode: {files,dirs,files_and_dirs}
-        {{'.txt'}, 'text file', 'txt'}, ... % Available file formats
+        {{'.csv'}, 'text file', 'csv'}, ... % Available file formats
         []};                          % DefaultFormats: {ChannelIn,DataIn,DipolesIn,EventsIn,MriIn,NoiseCovIn,ResultsIn,SspIn,SurfaceIn,TimefreqIn}
     % Option: MRI file
     sProcess.options.textFile.Comment = 'Output folder:';
@@ -76,8 +70,8 @@ function OutputFile = Run(sProcess, sInput)
     % Load subject
     sSubject = bst_get('Subject', sInput.SubjectName);
     % identify inputs
-    iMaps = find(~strcmp({sInput.Comment},'Ground Truth'));
-    iTruth = find(strcmp({sInput.Comment},'Ground Truth'));
+    iMaps = find(~contains({sInput.Comment},'Ground Truth'));
+    iTruth = find(contains({sInput.Comment},'Ground Truth'));
     
     % Identify FOV from map 1
     sData           = in_bst_results(sInput(iMaps(1)).FileName);
@@ -98,26 +92,37 @@ function OutputFile = Run(sProcess, sInput)
     [rH, lH]    = tess_hemisplit(sCortex);
     
 
+    % Find the time of interest : peak of the simulated response
+
+    [~, timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
+    sTruth           =  sGroundTruth.ImageGridAmp(idx_FOV,:);
+
+
     % prepare new ground truth map based on the FOV
 
-    simulation_options = sGroundTruth.simulation_options; 
-    Jtheo = zeros(size(sGroundTruth.ImageGridAmp,1),1);
-    Jtheo(simulation_options.Vertices) = 1;
+    if isfield(sGroundTruth, 'Options')
+        simulation_options = sGroundTruth.Options; 
+        Jtheo = zeros(size(sGroundTruth.ImageGridAmp,1),1);
+        Jtheo(simulation_options.Vertices) = 1;
+    else
+        Jtheo = sGroundTruth.ImageGridAmp(:,timeZeroSample);
+        Jtheo =  Jtheo ~= 0; 
+    end
 
     Jtheo       = Jtheo(idx_FOV);
     idx_truth   = find(Jtheo); 
+    
 
     % Measure depth
     sScalp = in_tess_bst(sSubject.Surface(sSubject.iScalp).FileName);
     depth = 1000 * min(nst_pdist(sCortex.Vertices(idx_truth,:),sScalp.Vertices),[],2);
 
 
-    [M,timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
-    sTruth             =  sGroundTruth.ImageGridAmp(idx_FOV,:);
+
 
     % Estimate lateralization of the scout 
     isLeftScout     = ~isempty(intersect(lH, idx_truth));
-    isRightScout     = ~isempty(intersect(rH, idx_truth));
+    isRightScout    = ~isempty(intersect(rH, idx_truth));
 
     assert(xor(isLeftScout,isRightScout),'The scout cannot be bilateral');
 
@@ -129,6 +134,7 @@ function OutputFile = Run(sProcess, sInput)
         ROC_Struct = GlobalData.ROC_Struct;
     else
         ROC_Struct = prepare_ROC(sCortex);
+        save_brainstorm_clusters(sGroundTruth.SurfaceFile,idx_FOV, ROC_Struct, Jtheo);
         GlobalData.ROC_Struct = ROC_Struct;
     end
     
@@ -145,13 +151,16 @@ function OutputFile = Run(sProcess, sInput)
 
 
         results.ROI     = string(simulation_options.Label);
+        results.snr     = simulation_options.options.SNR;
         results.depth   = mean(depth);
-        results.SNR     = simulation_options.options.SNR;
+
         results.NVertex = length(idx_truth);
         results.time    = sData.Time(timeZeroSample);
 
         if contains (sData.Comment,'wMNE')
             results.method  = "MNE";
+        elseif contains (sData.Comment,'cMEM')
+            results.method  = "cMEM";
         else
             results.method  = "wMEM";
         end
@@ -161,8 +170,8 @@ function OutputFile = Run(sProcess, sInput)
         % Estimate the ratio of spurius activity :  energy on
         % controlateral side / total energy
 
-        sMap_max_left = sMap_max(lH);
-        sMap_max_right = sMap_max(rH);
+        sMap_max_left   = sMap_max(lH);
+        sMap_max_right  = sMap_max(rH);
         
         total_energy = sum(sMap_max_right.^2) + sum(sMap_max_left.^2);
         if isLeftScout 
@@ -171,13 +180,7 @@ function OutputFile = Run(sProcess, sInput)
             results.RSA = 100 * sum(sMap_max_left.^2) / total_energy;
         end
         
-        % Remove data from the controlateral side - check with CG
-        % if isLeftScout 
-        %     sMap_max(rH) = 0;
-        % else
-        %     sMap_max(lH) = 0;
-        % end 
-    
+
         % 1. DLE --  Distance from the max vertex to the ground truth
         [~,maxVert] = max(abs(sMap_max));
         results.DLE = distances(maxVert);
@@ -186,6 +189,8 @@ function OutputFile = Run(sProcess, sInput)
         results.SD = sqrt(sum(distances.^2 .* sMap_max.^2) / sum(sMap_max.^2));
         
         % 3. AUC 
+
+
         [Res_summary, Res_close_summary, Res_far_summary  ] =  Compute_ALL_AUC_global(0, ...
                                                                                  Jtheo, sMap_max, 1, ...
                                                                                  ROC_Struct.VoisinsOA, ...
@@ -213,11 +218,21 @@ function OutputFile = Run(sProcess, sInput)
 
         %2. Compute the temporal metrics 
         all_corr = zeros(1, length(idx_truth));
+        all_scales   = zeros(1, length(idx_truth));
+        
         for iVertex = 1:length(idx_truth)
             Corr = corrcoef(sTruth(idx_truth(iVertex), :), sMap(idx_truth(iVertex), :) );
             all_corr(iVertex) = Corr(1,2);
+
+            mdl = fitlm( sMap(idx_truth(iVertex), :), sTruth(idx_truth(iVertex), :));
+            all_scales(iVertex) = mdl.Coefficients.Estimate(2);
         end
+
+
         results.correlation = median(all_corr);
+        results.scales      = median(all_scales);
+        results.comment     = string(sData.Comment);
+
         all_results(iFile,:) = results;
 
     end
@@ -232,7 +247,7 @@ function [output] = prepare_ROC(sCortex)
     
     output = struct();
     output.VoisinsOA   = adj2Voisins(sCortex.VertConn);
-    output.nClusters   = 30;
+    output.nClusters   = 100;
     output.isRandom    = 1;
     output.VERBOSE     = 0;
     output.Labels      = tess_cluster(sCortex.VertConn, output.nClusters, output.isRandom, output.VERBOSE);
@@ -243,7 +258,68 @@ function [output] = prepare_ROC(sCortex)
     end
     output.mycluster = mycluster;
 
-    output.nb_resampling    = 50;
-    output.ordreVoisinage   = 5;
+    output.nb_resampling    = 100;
+    output.ordreVoisinage   = 3;
     output.thresholds = linspace(0, 1, 100);
+end
+
+function save_brainstorm_clusters(surfaceFile,idx_FOV, ROC_Struct, Jtheo)
+
+    sCortex = in_tess_bst(surfaceFile);
+    
+    iAtlas = find(strcmp({sCortex.Atlas.Name}, 'ROC_ROI'));
+    if isempty(iAtlas)
+        sCortex.Atlas(end+1) = struct('Name',  'ROC_ROI' , 'Scouts', repmat(db_template('scout'),1,length(ROC_Struct.mycluster)) );
+        iAtlas = find(strcmp({sCortex.Atlas.Name}, 'ROC_ROI'));
+
+    else
+        sCortex.Atlas(iAtlas) = struct('Name',  'ROC_ROI' , 'Scouts', repmat(db_template('scout'),1,length(ROC_Struct.mycluster)) );
+    end
+
+
+    for iCluster = 1:length(ROC_Struct.mycluster)
+        clusters = db_template('scout');
+        clusters.Vertices = idx_FOV(ROC_Struct.mycluster{iCluster});
+        clusters.Seed = idx_FOV(ROC_Struct.mycluster{iCluster}(1));
+        clusters.Label    = sprintf('Cluster %d', iCluster);
+        clusters.Color    = rand(1,3);
+
+        
+        sCortex.Atlas(iAtlas).Scouts(iCluster)  = clusters;
+    end
+
+
+    Itheo = find(Jtheo ~=0);
+    Itheo = unique(Itheo);
+     
+    SupportClose = [];
+    for i = 1:length(Itheo)
+        SupportClose = unique([ SupportClose ROC_Struct.VoisinsOA{ROC_Struct.ordreVoisinage,Itheo(i)}]);
+    end
+    SupportFar = setdiff([1:length(Jtheo)], SupportClose);
+
+    iAtlas = find(strcmp({sCortex.Atlas.Name}, 'support_close'));
+    if isempty(iAtlas)
+        sCortex.Atlas(end+1) = struct('Name',  'support_close' , 'Scouts', repmat(db_template('scout'),1, 2) );
+        iAtlas = find(strcmp({sCortex.Atlas.Name}, 'support_close'));
+
+    else
+        sCortex.Atlas(iAtlas) = struct('Name',  'support_close' , 'Scouts', repmat(db_template('scout'),1, 2) );
+    end
+    
+    clusters = db_template('scout');
+    clusters.Vertices = idx_FOV(SupportClose);
+    clusters.Seed     = idx_FOV(SupportClose(1));
+    clusters.Label    =  'Support close';
+    clusters.Color    = rand(1,3);
+    sCortex.Atlas(iAtlas).Scouts(1)  = clusters;
+
+    clusters = db_template('scout');
+    clusters.Vertices = idx_FOV(SupportFar);
+    clusters.Seed     = idx_FOV(SupportFar(1));
+    clusters.Label    =  'Support Far';
+    clusters.Color    = rand(1,3);
+    sCortex.Atlas(iAtlas).Scouts(2)  = clusters;
+
+    bst_save( file_fullpath(surfaceFile), sCortex);
 end

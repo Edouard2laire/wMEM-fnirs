@@ -16,12 +16,9 @@ end
 if nargin < 10
     area = [];
 end
-mypeak = peak ;% peak ou on calcule les metriques AUC
-%ordreVoisinage = 10; % definition du support Close pour le calcul d AUCclose qui tire les sources fictives dans un voisinage autour de la source simulee
 
-Jmeas = abs(J(:,mypeak)) / max(abs(J(:,mypeak))); % normalisation entre 0 et 1 du vecteur resultat a tester
+Jmeas = abs(J(:,peak)) / max(abs(J(:,peak))); % normalisation entre 0 et 1 du vecteur resultat a tester
 
-%nb_resampling = 30; % nombre de reechantillonnage
 
 for i = 1:nb_resampling
     [Res_close(i),Res_far(i)]   = Compute_AUC_global(Mesh, Jtheo, Jmeas,  VoisinsOA, clusters, ordreVoisinage, 0,thresholds, area);

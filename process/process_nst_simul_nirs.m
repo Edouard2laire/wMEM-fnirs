@@ -10,10 +10,14 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.SubGroup    = {'NIRS', 'Simulation'};
     sProcess.Index       = 3003;
     % Definition of the input accepted by this process
-    sProcess.InputTypes  = {'data', 'raw', 'results'};
-    sProcess.OutputTypes = {'data', 'data', 'results'};
+    sProcess.InputTypes  = {'data'};
+    sProcess.OutputTypes = {'data'};
     sProcess.nInputs     = 1;
     sProcess.nMinFiles   = 1;
+
+    sProcess.options.method.Type       = 'radio_linelabel';
+    sProcess.options.method.Comment    = {'Oscillations', 'Task','Simulation type'; 'oscilation', 'task',''};
+    sProcess.options.method.Value      = 'oscilations';
 
 
     sProcess.options.sim_name.Comment = 'Simulation Name: ';
@@ -44,10 +48,13 @@ end
 
 %% ===== RUN =====
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
+
+
     OutputFiles = {};
     sStudy = bst_get('Study', sInputs.iStudy);
     OPTIONS = sProcess.options;
-
+        
+    disp('')
 
     % Load data
     sData = in_bst_data(sInputs(1).FileName);
@@ -59,53 +66,57 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     end
 
     % Load head model
-    nirs_head_model = in_bst_headmodel(sStudy.HeadModel(sStudy.iHeadModel).FileName);
+    HeadModelFile   = sStudy.HeadModel(sStudy.iHeadModel).FileName;
+    nirs_head_model = in_bst_headmodel(HeadModelFile);
     sCortex = in_tess_bst(nirs_head_model.SurfaceFile);
 
 
-    % generate activation aptch 
+    % generate activation patch 
 
     ROI  =  sProcess.options.scouts.Value;
     Atlas_name = ROI{1};
     iAtlas = find(strcmp( {sCortex.Atlas.Name}, Atlas_name));
 
+    % Create output condition
     iStudy = db_add_condition(sInputs.SubjectName, sProcess.options.sim_name.Value);
     sStudy = bst_get('Study', iStudy);
-    
+
     % Save channel definition
-    [tmp, iChannelStudy] = bst_get('ChannelForStudy', iStudy);
+    [~, iChannelStudy] = bst_get('ChannelForStudy', iStudy);
     db_set_channel(iChannelStudy, ChannelMat, 2, 0);
 
+    % Copy head model
+    db_set_headmodel(HeadModelFile, iStudy);
+
+    bst_progress('start', 'Simulating signal', 'Simulating signal', 1, length(ROI{2})) 
     for iROI = 1:length(ROI{2})
+
+
         ROI_name = ROI{2}{iROI};
         iRois  = find(contains({sCortex.Atlas(iAtlas).Scouts.Label} , ROI_name ));
     
         ROI_select = sCortex.Atlas(iAtlas).Scouts(iRois);
         
         activation = struct(); 
-        activation.Label = ROI_select(1).Label;
-        activation.Vertices = ROI_select(1).Vertices;
-        activation.ampmode = 'unif';
 
-        activation.options = struct(); 
-        activation.options.type = 'oscilation';
-        activation.options.freq = 0.1; %0.006;
-        activation.options.SNR =   sProcess.options.SNR.Value{1};
-        activation.options.peak_time = sData.Time(round(length(sData.Time)/2)) ; %peak at the middle of the time window
-        activation.options.duration = 40; %seconds
-    
-       
-        [data_simul,groundTruth,groundTruthHead,SNR_est]  = simulNirs(sCortex, nirs_head_model, activation, ChannelMat,sData, OPTIONS);
+        activation.Label    = ROI_select(1).Label;
+        activation.Vertices = ROI_select(1).Vertices;
+        activation.ampmode  = 'unif';
+
+        activation.options =  get_default_options(sData.Time, sProcess.options.method.Value);
+        activation.options.SNR = sProcess.options.SNR.Value{1};
+
+        [data_simul, groundTruth, groundTruthHead, SNR_est, ChannelFlag,  event]  = simulNirs(sCortex, nirs_head_model, activation, ChannelMat,sData, OPTIONS);
     
 
         sDataOut = db_template('data');
         sDataOut.F            = data_simul; 
-        sDataOut.Comment      = sprintf('simul | %s | %s  SNR =  %.2fdb',Atlas_name,ROI_name, activation.options.SNR) ;
-        sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
+        sDataOut.Comment      = sprintf('simul | %s | %s  SNR =  %.2fdb',Atlas_name, ROI_name, activation.options.SNR) ;
+        sDataOut.ChannelFlag  = ChannelFlag;
         sDataOut.Time         = sData.Time;
         sDataOut.DataType     = 'recordings'; 
         sDataOut.nAvg         = 1;
-        sDataOut.Events       = [];
+        sDataOut.Events       = event;
         sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
         sDataOut.DisplayUnits = 'delta OD';
     
@@ -127,22 +138,22 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         ResultsMat.GoodChannel   = [];
         ResultsMat.DisplayUnits  = 'delta OD';
         ResultsMat.SurfaceFile   = nirs_head_model.SurfaceFile;
-        ResultsMat.simulation_options    = activation;
-        % Save new file structure
+        ResultsMat.Options    = activation;
+        % % Save new file structure
         OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'results_ground_truth_simul');
         bst_save(OutputFile, ResultsMat, 'v6');
         % Update database
         db_add_data(iStudy, OutputFile, ResultsMat);
-        OutputFiles{end+5} = OutputFile;
+        %OutputFiles{end+1} = OutputFile;
 
         sDataOut = db_template('data');
         sDataOut.F            = groundTruthHead; 
         sDataOut.Comment      = sprintf('Truth | %s | %s  SNR =  %.2fdb',Atlas_name,ROI_name, activation.options.SNR) ;
-        sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
+        sDataOut.ChannelFlag  = ChannelFlag;
         sDataOut.Time         = sData.Time;
         sDataOut.DataType     = 'recordings'; 
         sDataOut.nAvg         = 1;
-        sDataOut.Events       = [];
+        sDataOut.Events       = event;
         sDataOut = bst_history('add', sDataOut, 'process', sProcess.Comment);
         sDataOut.DisplayUnits = 'delta OD';
 
@@ -152,7 +163,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         bst_save(OutputFile_data, sDataOut, 'v7');
         % Register in database
         db_add_data(iStudy, OutputFile_data, sDataOut);
-        OutputFiles{end+2} = OutputFile_data;
+        %OutputFiles{end+1} = OutputFile_data;
 
         ResultsMat = db_template('resultsmat');
         ResultsMat.Comment       = 'Ground Truth';
@@ -164,18 +175,18 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         ResultsMat.GoodChannel   = [];
         ResultsMat.DisplayUnits  = 'delta OD';
         ResultsMat.SurfaceFile   = nirs_head_model.SurfaceFile;
-        ResultsMat.simulation_options    = activation;
-        % Save new file structure
-        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'results_ground_truth_simul');
+        ResultsMat.Options    = activation;
+        % % Save new file structure
+        OutputFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), 'results_ground_truth_simul_NIRS');
         bst_save(OutputFile, ResultsMat, 'v6');
         % Update database
         db_add_data(iStudy, OutputFile, ResultsMat);
-        OutputFiles{end+3} = OutputFile;
+        %OutputFiles{end+1} = OutputFile;
 
         sDataOut = db_template('data');
         sDataOut.F            = SNR_est; 
         sDataOut.Comment      = sprintf('SNR | %s | %s  SNR = %.2fdb',Atlas_name,ROI_name, activation.options.SNR) ;
-        sDataOut.ChannelFlag  = ones(size(data_simul, 1), 1);
+        sDataOut.ChannelFlag  = ChannelFlag;
         sDataOut.Time         = [0];
         sDataOut.DataType     = 'recordings'; 
         sDataOut.nAvg         = 1;
@@ -189,25 +200,30 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         bst_save(OutputFile, sDataOut, 'v7');
         % Register in database
         db_add_data(iStudy, OutputFile, sDataOut);
-        OutputFiles{end+4} = OutputFile;
+        %OutputFiles{end+1} = OutputFile;
+        
+
+        bst_progress('inc', 1);
     end
+
+    % Update tree 
+    panel_protocols('UpdateNode', 'Study', iStudy);
 
 end
 
 
-function [data_simul,groundTruth, groundTruthHead, SNR_est]  = simulNirs(sCortex, head_model,activation, ChannelMat, noise , OPTIONS )
+function [data_simul, groundTruth, groundTruthHead, SNR_est, ChannelFlag, event]  = simulNirs(sCortex, head_model, activation, ChannelMat, noise , OPTIONS )
 
 
-    iwl = 1;
-    swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(1))];
+    iwl = 2;
+    swl = ['WL' num2str(ChannelMat.Nirs.Wavelengths(iwl))];
     selected_chans = strcmpi({ChannelMat.Channel.Group}, swl) & (noise.ChannelFlag>0)';
 
     % Select valid node on the cortex
     thresh_dis2cortex       = OPTIONS.thresh_dis2cortex.Value{1} .* 0.01;
-    valid_nodes             = nst_headmodel_get_FOV(ChannelMat, sCortex, thresh_dis2cortex,noise.ChannelFlag );
+    valid_nodes             = nst_headmodel_get_FOV(ChannelMat, sCortex, thresh_dis2cortex, noise.ChannelFlag);
 
     % Noise data
-    Channel         = ChannelMat.Channel(selected_chans);
     Time            = round(noise.Time,6);  
     noise_data      = noise.F(selected_chans,:);
 
@@ -218,22 +234,14 @@ function [data_simul,groundTruth, groundTruthHead, SNR_est]  = simulNirs(sCortex
     gain = gain(:,valid_nodes);
     gain(gain == 0) = min( gain(gain>0));
 
-    % Load valid node on the cortex 
-    sigma = activation.options.duration / 2.354;
-    Tc = (Time- activation.options.peak_time);
-    y = cos(2*pi*activation.options.freq*Tc) .* ...
-                exp( - Tc .^ 2 ./ ( 2* sigma^2));
-    env = [ exp( - Tc .^ 2 ./ ( 2* sigma^2))  ;  -exp( - Tc .^ 2 ./ ( 2* sigma^2))];
-    % figure;
-    % subplot(121)
-    % 
-    % plot(Tc, [y; env])
-    % title('Time course')
-    % subplot(122)
-    % periodogram(y,[],length(y),10)
-    % xline(activation.options.freq)
-    % xlim([ 0 0.1])
+    switch(activation.options.type)
 
+        case 'oscilation'
+            [y, event] = simulate_oscilations(Time, activation.options);
+        case 'task'
+            [y, event] = simulate_task(Time, activation.options);
+
+    end
     nodes = zeros(1,size(sCortex.Vertices,1));
     nodes(activation.Vertices) = 1; 
 
@@ -262,4 +270,97 @@ function [data_simul,groundTruth, groundTruthHead, SNR_est]  = simulNirs(sCortex
     SNR_est = zeros(size(noise.F,1),1); 
     SNR_est(selected_chans, :) = 10*log10(sqrt(var(k*data_head,[],2) ./ var(noise_data,[],2)));
 
+
+
+    ChannelFlag = -1 * ones(size(noise.F,1),1); 
+    ChannelFlag(selected_chans, :) = 1;
+
+
 end
+
+
+function options    = get_default_options(Time, type)
+% Return the default options for the type of simulation
+% type is either oscilations or task
+
+    options = struct(); 
+    options.type = type;
+
+    switch(type)
+        case 'oscilation'
+
+            options.freq        = 0.1; %0.006;
+            options.peak_time   = Time(round(length(Time)/2)) ; %peak at the middle of the time window
+            options.duration    = 40; %seconds
+
+        case 'task' 
+            hrf_types   = process_nst_glm_fit('get_hrf_types');
+            options.hrf = hrf_types.GAMMA;
+            options.task_duration = 10; % seconds
+            options.rest_duration = [30 , 40]; % seconds uniform from 30 to 60s
+
+    end
+
+
+
+end
+
+
+function [y, event] = simulate_oscilations(Time, options)
+    
+
+    event = db_template('Event');
+    event.label = 'oscilations';
+    event.times = options.peak_time;
+    event.color = [ .4    .4    1];
+    event.epochs = 1;
+    sigma   = options.duration / 2.354;
+    Tc      = ( Time -  options.peak_time);
+
+
+    y = cos(2 * pi * options.freq * Tc) .*  exp( - Tc .^ 2 ./ ( 2* sigma^2));
+
+end
+
+function [y, event_task] = simulate_task(Time, options)
+
+    paradigm = zeros(1, length(Time));
+
+    event_task = db_template('Event');
+    event_task.label = 'Task';
+    event_task.color = [ .4    .4    1];
+
+    % Leave 1 minute of RS at the begening 
+    [~, idx_start] =  min(abs(Time - 60)); 
+    T = Time(idx_start);
+
+    % Random generator for the rest duration
+    pd = makedist('unif', options.rest_duration(1), options.rest_duration(2));
+
+    while( T +  options.task_duration + options.rest_duration(1) <  (Time(end)  ))
+        
+        % 1. Add task
+        idx_task =  panel_time('GetTimeIndices', Time, [T, T + options.task_duration]);
+        paradigm(idx_task) = 1;
+        event_task.times(:, end+1) = [T; T + options.task_duration];
+
+        T = T + options.task_duration;
+
+        % 2. Add Rest
+        
+        rest_duration = random(pd);
+        T = T + rest_duration;
+
+    end
+
+    model = nst_glm_initialize_model(Time);
+    model = nst_glm_add_regressors(model, "event", event_task, options.hrf, 30);
+
+    y = transpose(model.X ./ max(model.X)); 
+    
+    event_task.epochs = ones(1, size(event_task.times,2));
+
+end
+
+
+            

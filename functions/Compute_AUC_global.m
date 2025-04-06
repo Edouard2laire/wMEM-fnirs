@@ -88,7 +88,7 @@ Jfictif = zeros(nbvertices,1);
 Jfictif(Isources_fictives_selected) = 1;
 
 
-Res_close = Compute_RocParam(Jmeas, Jtheo,Jfictif,  thresholds, area);
+Res_close = Compute_RocParam(Jmeas, Jtheo, Jfictif,  thresholds, area);
 Res_close.thresholds = thresholds;
 
 Res_close.AUC = ComputeAUC(1-Res_close.specificity,Res_close.sensitivity);
@@ -159,6 +159,5 @@ if ~isempty(area)
     Res_far.AUC_area = ComputeAUC(1-Res_far.specificity_area,Res_far.sensitivity_area);
 end
 
-clear Jsel Energy Jmeas Res
 
 end
