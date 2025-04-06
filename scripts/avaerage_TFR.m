@@ -19,9 +19,22 @@ bst_plugin('Load', 'TFNIRS', 1);
 
 new_frequency = logspace( log10(0.002), log10(1.5), 500);
 
+sleep_stage  = {'Wake';'N1';'N2';'N3';'REM'};
+epi_activity = {'bursts', 'spikes_LR', 'spikes_RL', 'spikes_bilat', 'single_s'};
 
+%% Inputs -- TEMPORAL RIGHT
+% sFilesCortex = {'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/timefreq_wavelet_250401_1301.mat' ; ...
+%                 'sub-02/sub-02_task-rest_run-01_pipeline-preproc/timefreq_wavelet_250401_1321.mat' ; ...
+%                 'sub-02/sub-02_task-rest_run-01_pipeline-preproc/timefreq_wavelet_250401_1459.mat'};
+sFilesCortex = {...
+    'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/timefreq_wavelet_250401_1302.mat', ...
+    'sub-02/sub-02_task-rest_run-01_pipeline-preproc/timefreq_wavelet_250401_1315.mat', ...
+    'sub-02/sub-02_task-rest_run-01_pipeline-preproc/timefreq_wavelet_250401_1459.mat'};
 
-options = load('/Users/edelaire1/Documents/Project/CIHR/CIHR_march_2024/TF/PA03/options.mat').options;
+sFilesData   =  { 'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/data_hb_250401_1218.mat'};
+
+sData = in_bst_timefreq(sFilesCortex{1});
+options = sData.Options;
 options.wavelet = rmfield(options.wavelet,'freqWindow');
 options.colormap = 'jet';
 options.clim = [0 0.25];
@@ -33,13 +46,6 @@ options.color_map =  [  228,  26,  28  ; ...
                         255, 127,   0  ] ./ 255;
 
 
-sleep_stage  = {'wake';'N1';'N2';'N3';'REM'};
-epi_activity = {'bursts', 'spikes_LR', 'spikes_RL', 'spikes_bilat', 'single_s'};
-
-%% Inputs -- TEMPORAL RIGHT
-sFilesCortex = { 'Subject01/sub-03_ses-02_task-sleep_mod-nirs_run-02_sync_time_dOD__motioncorr_band_scr/timefreq_wavelet_240415_1603.mat'};
-sFilesData =  { 'Subject01/sub-03_ses-02_task-sleep_mod-nirs_run-02_sync_time_dOD__motioncorr_band_scr/data_block001.mat'};
-
 
 
 fprintf(' %d files detected \n', length(sFilesCortex));
@@ -49,6 +55,12 @@ segments = [];
 for iFile = 1:length(sFilesCortex)
     sData = in_bst_timefreq(sFilesCortex{iFile});
     sDataHead = in_bst_data(sFilesData{1});
+    
+    if iFile == 2
+        sDataHead.Events(4).label = 'N1';
+    elseif iFile == 3
+        sDataHead.Events(4).label = 'N3';
+    end
 
     sleep_events    = sDataHead.Events( cellfun(@(x) any(strcmp(x,sleep_stage)), {sDataHead.Events.label}));
     epi_events      = sDataHead.Events( cellfun(@(x) any(strcmp(x,epi_activity)),{sDataHead.Events.label}));
@@ -66,7 +78,7 @@ for iFile = 1:length(sFilesCortex)
     end
     options.wavelet.freqs_analyzed = sData.Freqs;
     [sData.WDdata_avg, sData.time] = process_ft_wavelet('removeZero', sData.WDdata_avg,  sData.Time );
-    process_ft_wavelet('displayTF_Plane',sData.WDdata_avg, sData.time, struct_copy_fields(options,sData.Options));
+    %process_ft_wavelet('displayTF_Plane',sData.WDdata_avg, sData.time, struct_copy_fields(options,sData.Options));
 
     splitting_events = [sleep_events,epi_events, motion_events]; 
 
@@ -84,7 +96,7 @@ end
 selected_segments   = segments(cellfun(@(x) any(strcmp(sleep_stage, x)), {segments.label}) & ...
                                 [segments.duration] > 90, :);
 
-epoched_segments    = process_ft_wavelet('epochSegment',selected_segments, 60, 30);
+epoched_segments    = process_ft_wavelet('epochSegment',selected_segments,  60, 30);
 
 averaged_segments  = process_ft_wavelet('averageWithinSegment',epoched_segments);
 resampled_segments = process_ft_wavelet('resampleFrequency',averaged_segments, new_frequency);
@@ -100,31 +112,38 @@ for iStage = 1:length(sleep_stage)
 end
 disp(' - - - - - - - - - - - -')
 
-n_boot = 100;
+n_boot = 1000;
 averaged_segments = repmat(resampled_segments(1), 1,length(sleep_stage)) ;
+is_included       = true(1,length(sleep_stage));
 
 for iStage = 1:length(sleep_stage)
     segments_stage = resampled_segments( strcmp({resampled_segments.label}, sleep_stage{iStage}), : );
     if length(segments_stage) < 5
+
+        is_included(iStage) = false;
         continue;
     end
 
     sub_sample = repmat(resampled_segments(1), 1,n_boot) ;
     for iboot = 1:n_boot
-        idx = randsample(length(segments_stage),5);
+
+        idx = randsample(length(segments_stage), 5);
         sub_sample(iboot) = process_ft_wavelet('averageBetweenSegment', segments_stage(idx));
     end
+
+
     averaged_segments(iStage) = process_ft_wavelet('averageBetweenSegment', sub_sample);
 end
-averaged_segments = averaged_segments(3:4);
 
-options.title_tf = 'Power-Spectrum for Temporal Right - Cortical Surface (HbR)';
+averaged_segments = averaged_segments(is_included);
+
+options.title_tf = 'Power-Spectrum for Temporal Right (HbO))';
 fig = process_ft_wavelet('displayPowerSpectrum',cat(2,averaged_segments.WData)', ...
                                           cat(2,averaged_segments.WDataStd)', ...
-                                          {averaged_segments.label} , ...
+                                          {'Channel', 'Cortex (MEM)', 'Cortex (MNE)'} , ...
                                           averaged_segments(1).freq , ...
                                           options);
-
+xline(0.0339, '--');
 ylim([0 0.3]);
 % saveas(fig,fullfile(folder_out, 'powerspectrum-source-TR-N2N3-HbR.png'));
 

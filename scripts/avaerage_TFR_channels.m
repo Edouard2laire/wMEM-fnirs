@@ -19,20 +19,14 @@ bst_plugin('Load', 'TFNIRS', 1);
 
 new_frequency = logspace( log10(0.002), log10(0.5), 500);
 
-
-options = load('/Users/edelaire1/Documents/Project/CIHR/CIHR_march_2024/TF/PA03/options.mat').options;
-options.wavelet = rmfield(options.wavelet,'freqWindow');
-options.colormap = 'jet';
-options.clim = [0 0.25];
-options.wavelet.display.fontscale = 44;
-
-sleep_stage  = {'N2';'N3'};
+sleep_stage  = {'Wake'};
 epi_activity = {'bursts', 'spikes_LR', 'spikes_RL', 'spikes_bilat', 'single_s'};
 
 %% Inputs -- TEMPORAL RIGHT
-sFilesCortex = { 'Subject01/sub-03_ses-02_task-sleep_mod-nirs_run-02_sync_time_dOD__motioncorr_band_scr_Hb/timefreq_wavelet_240416_1218.mat'};
+sFilesCortex = {'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/timefreq_wavelet_250401_1301.mat' ; ...
+                'sub-02/sub-02_task-rest_run-01_pipeline-preproc/timefreq_wavelet_250401_1321.mat'};
 
-sFilesData =  {'Subject01/sub-03_ses-02_task-sleep_mod-nirs_run-02_sync_time_dOD__motioncorr_band_scr_Hb/data_block001.mat'};
+sFilesData   =  { 'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/data_hb_250401_1218.mat'};
 
 fprintf(' %d files detected \n', length(sFilesCortex));
 
@@ -40,7 +34,19 @@ fprintf(' %d files detected \n', length(sFilesCortex));
 iFile = 1;
 
 sData = in_bst_timefreq(sFilesCortex{iFile});
+options = sData.Options;
+options.wavelet = rmfield(options.wavelet,'freqWindow');
+options.colormap = 'jet';
+options.clim = [0 0.25];
+options.wavelet.display.fontscale = 44;
+
 sDataHead = in_bst_data(sFilesData{1});
+
+%%
+
+
+sData = in_bst_timefreq(sFilesCortex{2});
+
 
 sleep_events    = sDataHead.Events( cellfun(@(x) any(strcmp(x,sleep_stage)), {sDataHead.Events.label}));
 epi_events      = sDataHead.Events( cellfun(@(x) any(strcmp(x,epi_activity)),{sDataHead.Events.label}));
@@ -126,4 +132,4 @@ legend off
 fig.Position = [ -4.5944   -0.1411    2.8444    1.4844];
 ylim([0 0.15]);
 
-saveas(fig,fullfile(folder_out, 'powerspectrum-channel-space-TR-N2_zoom.png'));
+%saveas(fig,fullfile(folder_out, 'powerspectrum-channel-space-TR-N2_zoom.png'));
