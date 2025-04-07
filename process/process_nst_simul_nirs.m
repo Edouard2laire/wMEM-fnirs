@@ -7,7 +7,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     % Description the process
     sProcess.Comment     = 'Simulate NIRS signal';
     sProcess.Category    = 'Custom';
-    sProcess.SubGroup    = {'NIRS', 'Simulation'};
+    sProcess.SubGroup    = {'Custom Processes','NIRS - wMEM'};
     sProcess.Index       = 3003;
     % Definition of the input accepted by this process
     sProcess.InputTypes  = {'data'};

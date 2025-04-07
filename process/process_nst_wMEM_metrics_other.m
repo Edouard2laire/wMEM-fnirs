@@ -28,7 +28,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.Comment     = 'Compute other';
     sProcess.FileTag     = '';
     sProcess.Category    = 'Custom';
-    sProcess.SubGroup    = {'NIRS', 'Simulation'};
+    sProcess.SubGroup    = {'Custom Processes','NIRS - wMEM'};
     sProcess.Index       = 20150;
     % Definition of the input accepted by this process
     sProcess.InputTypes  = {'results'};
