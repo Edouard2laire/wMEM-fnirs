@@ -36,7 +36,16 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.nMinFiles   = 1;
     sProcess.isSeparator = 0;
     
-    
+
+    sProcess.options.time_of_interest.Comment = 'Time of interest: ';
+    sProcess.options.time_of_interest.Type    = 'value';
+    sProcess.options.time_of_interest.Value   = {0.34, 's',5};
+
+    sProcess.options.range_of_interest.Comment = 'Time window for correlation: ';
+    sProcess.options.range_of_interest.Type    = 'timewindow';
+    sProcess.options.range_of_interest.Value   =  []; 
+
+
     % Definition of the options
     % === TARGET
     % File selection options
@@ -70,9 +79,11 @@ function OutputFile = Run(sProcess, sInput)
     % Load subject
     sSubject = bst_get('Subject', sInput.SubjectName);
     % identify inputs
-    iMaps = find(~contains({sInput.Comment},'Ground Truth'));
-    iTruth = find(contains({sInput.Comment},'Ground Truth'));
+    iMaps = find(~contains({sInput.Comment},{'Ground Truth', 'Theo'}));
+    iTruth = find(contains({sInput.Comment},{'Ground Truth', 'Theo'}));
     
+    assert(length(iTruth) == 1, 'Please provide only one ground truth');
+
     % Identify FOV from map 1
     sData           = in_bst_results(sInput(iMaps(1)).FileName);
     idx_FOV         = find(~all(abs(sData.ImageGridAmp) == 0,2));
@@ -85,17 +96,23 @@ function OutputFile = Run(sProcess, sInput)
     sCortex     = in_tess_bst(sGroundTruth.SurfaceFile);
 
     % Prepare new surface - only FOV
-
     iRemoveVert = setdiff(1:size(sCortex.Vertices,1), idx_FOV);
-    [sCortex.Vertices, sCortex.Faces, sCortex.Atlas] = tess_remove_vert(sCortex.Vertices, sCortex.Faces, iRemoveVert, sCortex.Atlas);
-    sCortex.VertConn = sCortex.VertConn(idx_FOV,idx_FOV);
+    if ~isempty(iRemoveVert)
+        [sCortex.Vertices, sCortex.Faces, sCortex.Atlas] = tess_remove_vert(sCortex.Vertices, sCortex.Faces, iRemoveVert, sCortex.Atlas);
+        sCortex.VertConn = sCortex.VertConn(idx_FOV,idx_FOV);
+    end
+
+    % Get left and right cortex
     [rH, lH]    = tess_hemisplit(sCortex);
     
 
     % Find the time of interest : peak of the simulated response
-
-    [~, timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
-    sTruth           =  sGroundTruth.ImageGridAmp(idx_FOV,:);
+    if ~isempty(sProcess.options.time_of_interest.Value{1})
+        [~, timeZeroSample] = min(abs( sGroundTruth.Time - sProcess.options.time_of_interest.Value{1}));
+    else
+        [~, timeZeroSample] =  max(max(abs(sGroundTruth.ImageGridAmp)));
+    end
+    sTruth              =  sGroundTruth.ImageGridAmp(idx_FOV,:);
 
 
     % prepare new ground truth map based on the FOV
@@ -105,6 +122,7 @@ function OutputFile = Run(sProcess, sInput)
         Jtheo = zeros(size(sGroundTruth.ImageGridAmp,1),1);
         Jtheo(simulation_options.Vertices) = 1;
     else
+        simulation_options = struct();
         Jtheo = sGroundTruth.ImageGridAmp(:,timeZeroSample);
         Jtheo =  Jtheo ~= 0; 
     end
@@ -117,6 +135,28 @@ function OutputFile = Run(sProcess, sInput)
     sScalp = in_tess_bst(sSubject.Surface(sSubject.iScalp).FileName);
     depth = 1000 * min(nst_pdist(sCortex.Vertices(idx_truth,:),sScalp.Vertices),[],2);
 
+    % === Depth of the cavity
+    
+    sMri        = in_mri_bst(sSubject.Anatomy(sSubject.iAnatomy).FileName);
+
+    NZ = sMri.SCS.NAS;
+    OD = sMri.SCS.RPA;
+    OG = sMri.SCS.LPA;
+
+    %Mesh
+    Mesh.vertices = sCortex.Vertices;
+    Mesh.faces = sCortex.Faces;
+    mriCoord = cs_convert(sMri, 'scs', 'mri', Mesh.vertices)' * 1000;
+    Mesh.vertices = mriCoord';
+    Mesh.faces = sCortex.Faces;
+
+    Mesh.vertices(:,1)=size(sMri.Cube,1)*sMri.Voxsize(1)-Mesh.vertices(:,1) ;%*1;%sMri.Voxsize(1);
+    Mesh.vertices(:,2)=size(sMri.Cube,2)*sMri.Voxsize(2)-Mesh.vertices(:,2) ;%*1;%sMri.Voxsize(2);
+    Mesh.vertices(:,3)=size(sMri.Cube,3)*sMri.Voxsize(3)-Mesh.vertices(:,3) ;%*1;%sMri.Voxsize(3);
+
+    %eccentricity
+    [~, all_eccentricity] = eccentricity(Mesh,NZ,OD,OG,eye(4,3), idx_truth, 1);
+    
 
 
 
@@ -149,20 +189,43 @@ function OutputFile = Run(sProcess, sInput)
         sMap            = sData.ImageGridAmp(idx_FOV,:);
         sMap_max        = sData.ImageGridAmp(idx_FOV,timeZeroSample);
 
+        if isfield(simulation_options, 'Label')
+           results.ROI     = string(simulation_options.Label);
+        else           
+            results.ROI     = num2str(iFile);
+        end
 
-        results.ROI     = string(simulation_options.Label);
-        results.snr     = simulation_options.options.SNR;
+        if isfield(simulation_options, 'options') && isfield(simulation_options.options, 'SNR')
+            results.snr     = simulation_options.options.SNR;
+        else
+            results.snr     = NaN;
+        end
+        
+        % Information about the ground truth
         results.depth   = mean(depth);
+
+        summary_func_eccentricity = {@mean, @median, @min, @max};
+        for iFun = 1:length(summary_func_eccentricity)
+            label = sprintf('eccentricity_%s', func2str(summary_func_eccentricity{iFun}));
+            value = summary_func_eccentricity{iFun}(all_eccentricity(idx_truth));
+            results.(label) = value;
+        end
 
         results.NVertex = length(idx_truth);
         results.time    = sData.Time(timeZeroSample);
-
-        if contains (sData.Comment,'wMNE')
-            results.method  = "MNE";
-        elseif contains (sData.Comment,'cMEM')
-            results.method  = "cMEM";
+        
+        if isfield(sData, 'Options') && isfield(sData.Options, 'FunctionName') && ~isempty(sData.Options.FunctionName)
+            results.method = string(sData.Options.FunctionName);
+        elseif isfield(sData,'Function') && ~isempty(sData.Function)
+            results.method = string(sData.Function);
         else
-            results.method  = "wMEM";
+            if contains (sData.Comment,'MNE')
+                results.method  = "MNE";
+            elseif contains (sData.Comment,'cMEM')
+                results.method  = "cMEM";
+            else
+                results.method  = "wMEM";
+            end
         end
         
         % Compute spatial metrics (at the time of the peak)
@@ -217,14 +280,18 @@ function OutputFile = Run(sProcess, sInput)
         results.specificity_30  = Res_summary.specificity_mean(idx_30per);
 
         %2. Compute the temporal metrics 
-        all_corr = zeros(1, length(idx_truth));
-        all_scales   = zeros(1, length(idx_truth));
+        all_corr    = zeros(1, length(idx_truth));
+        all_scales  = zeros(1, length(idx_truth));
         
+        TimeRange = sProcess.options.range_of_interest.Value{1};
+        iTime = panel_time('GetTimeIndices', sData.Time, TimeRange);
+
         for iVertex = 1:length(idx_truth)
-            Corr = corrcoef(sTruth(idx_truth(iVertex), :), sMap(idx_truth(iVertex), :) );
+
+            Corr = corrcoef(sTruth(idx_truth(iVertex), iTime), sMap(idx_truth(iVertex), iTime) );
             all_corr(iVertex) = Corr(1,2);
 
-            mdl = fitlm( sMap(idx_truth(iVertex), :), sTruth(idx_truth(iVertex), :));
+            mdl = fitlm( sMap(idx_truth(iVertex), iTime), sTruth(idx_truth(iVertex), iTime));
             all_scales(iVertex) = mdl.Coefficients.Estimate(2);
         end
 
@@ -247,7 +314,7 @@ function [output] = prepare_ROC(sCortex)
     
     output = struct();
     output.VoisinsOA   = adj2Voisins(sCortex.VertConn);
-    output.nClusters   = 100;
+    output.nClusters   = 30;
     output.isRandom    = 1;
     output.VERBOSE     = 0;
     output.Labels      = tess_cluster(sCortex.VertConn, output.nClusters, output.isRandom, output.VERBOSE);
@@ -258,8 +325,8 @@ function [output] = prepare_ROC(sCortex)
     end
     output.mycluster = mycluster;
 
-    output.nb_resampling    = 100;
-    output.ordreVoisinage   = 3;
+    output.nb_resampling    = 1000;
+    output.ordreVoisinage   = 5;
     output.thresholds = linspace(0, 1, 100);
 end
 

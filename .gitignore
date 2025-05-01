@@ -7,3 +7,11 @@
 
 logs/
 data/
+
+*.svg
+
+*.mp4
+
+*.avi
+
+*.png

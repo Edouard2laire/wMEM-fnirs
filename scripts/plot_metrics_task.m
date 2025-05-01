@@ -1,151 +1,184 @@
-addpath(genpath('/Users/edelaire1/Documents/software/gramm'));
+addpath(genpath('/Users/edelaire1/Documents/software/gramm-master'));
 
-%%  Analyze MNE results
-
-
-data_MNE        = readtable("data/metrics/metrics_task/metrics_MNE_simul-task_1db_small.csv");
-data_MNE        = add_column(data_MNE, 'nbo', @extract_nbo);
-data_MNE        = add_column(data_MNE, 'wavelet_scale', @extract_scale_numbers);
-data_MNE        = add_column(data_MNE, 'roi_idx', @extract_roi_name);
-data_MNE        = add_column(data_MNE, 'isLowPass', @(data) (contains(data.comment, 'low') || ~contains(data.comment, 'Avg')));
-data_MNE        = add_column(data_MNE, 'isAvgFirst', @(data) ~contains(data.comment, 'Avg'));
-data_MNE        = add_column(data_MNE, 'label', @generate_label);
+output_folder = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs/Figure','Simulation','task');
+if ~exist(output_folder)
+    mkdir(output_folder)
+end
 
 
-%% Display sparial variables
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_MNE, {'RSA','SD','DLE'});
+%% Main Figure. Comparison MNE, cMEM, wMEM
+
+data1 = read_metrics(fullfile('data','metrics','metrics_task','metrics_MNE_simul-task_-1.00dB_medium.csv'));
+data2 = read_metrics(fullfile('data','metrics','metrics_task','metrics_MNE_simul-task_0.00dB_medium.csv'));
+data3 = read_metrics(fullfile('data','metrics','metrics_task','metrics_MNE_simul-task_0.25dB_medium.csv'));
+
+data_MNE  = [ data1 ; data2; data3];
+data_MNE.label = repmat({'MNE'}, height(data_MNE), 1);
+
+data_MNE_select =  extract_data(data_MNE,  @(data) data.isLowPass && ~data.isAvgFirst);
+
+data1 = read_metrics(fullfile('data','metrics','metrics_task','metrics_wMEM_simul-task_-1.00dB_medium.csv'));
+data2 = read_metrics(fullfile('data','metrics','metrics_task','metrics_wMEM_simul-task_0.00dB_medium.csv'));
+data3 = read_metrics(fullfile('data','metrics','metrics_task','metrics_wMEM_simul-task_0.25dB_medium.csv'));
+
+data_wMEM  = [data1 ;  data2; data3];
+data_wMEM.label = repmat({'wMEM'}, height(data_wMEM), 1);
+
+data_wMEM_select =  extract_data(data_wMEM,  @(data) data.nbo == 6 && strcmp(data.wavelet_scale_method,'fixed') && data.isLowPass);
+
+data1 = read_metrics(fullfile('data','metrics','metrics_task','metrics_cMEM_simul-task_-1.00dB_medium.csv'));
+data2 = read_metrics(fullfile('data','metrics','metrics_task','metrics_cMEM_simul-task_0.00dB_medium.csv'));
+data3 = read_metrics(fullfile('data','metrics','metrics_task','metrics_cMEM_simul-task_0.25dB_medium.csv'));
+
+data_cMEM  = [data1; data2; data3];
+data_cMEM.label = repmat({'cMEM'}, height(data_cMEM), 1);
+data_cMEM_select =  extract_data(data_cMEM,  @(data) data.nbo == 4);
+
+
+data_all_select = [data_MNE_select ; data_cMEM_select; data_wMEM_select ];
+
+
+ 
+fig = figure('units','normalized','outerposition',[0 0 1 1]);
+
+clear g
+
+g(1,1) = plot_boxplot(data_all_select, {'DLE'},  'snr'); g(1,1).set_title('DLE (mm)');
+g(1,2) = plot_boxplot(data_all_select, {'SD'},  'snr'); g(1,2).set_title('SD (mm)');
+g(1,3) = plot_boxplot(data_all_select, {'correlation'},  'snr'); g(1,3).set_title('Correlation (%)');
+
+
+data_all_select2 =  extract_data(data_all_select,  @(data) data.DLE == 0);
+
+g(2,1) = plot_boxplot(data_all_select2, {'DLE'},  'snr');  g(2,1).set_title('DLE (mm)');
+g(2,2) = plot_boxplot(data_all_select2, { 'SD'},  'snr');  g(2,2).set_title('SD (mm)');
+g(2,3) = plot_boxplot(data_all_select2, { 'correlation'},  'snr'); g(2,3).set_title('Correlation (%)');
+
+g(1,1).geom_hline("yintercept",5,"style", 'b--');
+g(2,1).geom_hline("yintercept",5,"style", 'b--');
+g(1,2).geom_hline("yintercept",10,"style", 'b--');
+g(2,2).geom_hline("yintercept",10,"style", 'b--');
+g(1,3).geom_hline("yintercept", 0.8,"style", 'b--');
+g(2,3).geom_hline("yintercept", 0.8,"style", 'b--');
+
+g.set_title('Localization of simulated task activity')
+
 g.draw();
 
-% Display temporal variables
+g(1,1).facet_axes_handles.YLim = [0, 15]; 
+g(2,1).facet_axes_handles.YLim = [0, 15];  
 
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_MNE, {'correlation','scales'});
+g(1,2).facet_axes_handles.YLim = [0, 20];  
+g(2,2).facet_axes_handles.YLim = [0, 20];  
+
+g(1,3).facet_axes_handles.YLim = [0, 1];   
+g(2,3).facet_axes_handles.YLim = [0, 1];   
+
+% Remove the background of the box
+arrayfun(@(x)  arrayfun( @(y)set( y.box_handle, 'FaceAlpha', 0), x(1).results.stat_boxplot)  ,  g)
+
+
+pause(1)
+saveas(fig,fullfile(output_folder,'main_comparison_task.svg'));
+
+%% Annex. Impact of the pipeline on MNE localization
+
+data1 = read_metrics(fullfile('data','metrics','metrics_task','metrics_MNE_simul-task_-1.00dB_medium.csv'));
+data2 = read_metrics(fullfile('data','metrics','metrics_task','metrics_MNE_simul-task_0.00dB_medium.csv'));
+data3 = read_metrics(fullfile('data','metrics','metrics_task','metrics_MNE_simul-task_0.25dB_medium.csv'));
+
+data_MNE  = [ data1 ; data2; data3];
+
+clear g
+
+fig = figure('units','normalized','outerposition',[0 0 1 1]);
+g = plot_boxplot( data_MNE , {'DLE','SD', 'correlation'}, 'snr');
+g.set_title('Localization metrics')
+g.set_title('Localization of simulated task activity using MNE');
+g.set_layout_options( 'legend',true);
+g.set_names('x','Method','Column','','y','Value', 'color','SNR');
+
 g.draw();
 
-% Display AUC and ROC information
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_MNE, {'auc_close','sensitivity_30','specificity_30','ppv_30','npv_30'});
-g.draw();
+g.facet_axes_handles(1,1).YLim = [0, 30];
+g.facet_axes_handles(1,2).YLim = [0, 20]; 
+g.facet_axes_handles(1,3).YLim = [0, 1]; 
 
+% Remove the background of the box
+arrayfun(@(x) set(x.box_handle, 'FaceAlpha', 0),  g(1).results.stat_boxplot)
 
-% Generate 2D plot
+pause(1)
+saveas(fig,fullfile(output_folder,'annex_comparison_simulation_task_mne.svg'));
 
-figure('Position',[100 100 550 550]);
-g = plot_2D_scatterplot(data_MNE.sensitivity_30, data_MNE.specificity_30, 'Sensitivity', 'Specificity',  categorical(data_MNE.label), data_MNE.roi_idx, data_MNE.sensitivity_30 >= 0);
-g = g.draw();
+%% Annex. Impact of the pipeline on wMEM localization
 
-figure('Position',[100 100 550 550]);
-g = plot_2D_scatterplot(data_MNE.DLE, data_MNE.SD, 'DLE (mm)', 'SD (mm)',  categorical(data_MNE.label), data_MNE.roi_idx, data_MNE.DLE >= 0);
-g = g.draw();
+data1 = read_metrics(fullfile('data','metrics','metrics_task','metrics_wMEM_simul-task_-1.00dB_medium.csv'));
+data2 = read_metrics(fullfile('data','metrics','metrics_task','metrics_wMEM_simul-task_0.00dB_medium.csv'));
+data3 = read_metrics(fullfile('data','metrics','metrics_task','metrics_wMEM_simul-task_0.25dB_medium.csv'));
+data_wMEM  = [data1 ;  data2; data3];
 
+for i = 1:height(data_wMEM)
+    data_wMEM(i,'label') = {sprintf('NBO = %d',data_wMEM(i,:).nbo)};
+end
 
+clear g
 
-%%  Analyze cMEM results
-
-data_MEM  = readtable("data/metrics/metrics_task/metrics_cMEM_simul-task_1db_small.csv");
-
-data_MEM        = add_column(data_MEM, 'nbo', @extract_nbo);
-data_MEM        = add_column(data_MEM, 'wavelet_scale', @extract_scale_numbers);
-data_MEM        = add_column(data_MEM, 'roi_idx', @extract_roi_name);
-data_MEM        = add_column(data_MEM, 'isLowPass', @(data) (contains(data.comment, 'low') || ~contains(data.comment, 'Avg')));
-data_MEM        = add_column(data_MEM, 'isAvgFirst', @(data) ~contains(data.comment, 'Avg'));
-data_MEM        = add_column(data_MEM, 'label', @generate_label);
-
-%%
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_MEM, {'RSA','SD','DLE'});
-g.draw();
-
-
-% Display temporal variables
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_MEM, {'correlation','scales'});
-g.draw();
-
-% Display AUC and ROC information
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_MEM, {'auc_close','sensitivity_30','specificity_30','ppv_30','npv_30'});
-g.draw();
-
-
-% Generate 2D plot
-
-figure('Position',[100 100 550 550]);
-g = plot_2D_scatterplot(data_MEM.sensitivity_30, data_MEM.specificity_30, 'Sensitivity', 'Specificity',  categorical(data_MEM.label), data_MEM.roi_idx, data_MEM.sensitivity_30 >= 0);
-g = g.draw();
-
-figure('Position',[100 100 550 550]);
-g = plot_2D_scatterplot(data_MEM.DLE, data_MEM.SD, 'DLE (mm)', 'SD (mm)',  categorical(data_MEM.label), data_MEM.roi_idx, data_MEM.DLE >= 0);
-g = g.draw();
-
-
-%%  Analyze wMEM results
-
-
-data_wMEM        = readtable("data/metrics/metrics_task/metrics_wMEM_simul-task_1db_small.csv");
-data_wMEM        = add_column(data_wMEM, 'nbo', @extract_nbo);
-data_wMEM        = add_column(data_wMEM, 'wavelet_scale', @extract_scale_numbers);
-data_wMEM        = add_column(data_wMEM, 'roi_idx', @extract_roi_name);
-data_wMEM        = add_column(data_wMEM, 'isLowPass', @(data) (contains(data.comment, 'low') || ~contains(data.comment, 'Avg')));
-data_wMEM        = add_column(data_wMEM, 'isAvgFirst', @(data) ~contains(data.comment, 'Avg'));
-data_wMEM        = add_column(data_wMEM, 'label', @generate_label);
-%%
-
-
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_wMEM, {'RSA','SD','DLE'}, 'nbo');
-g.draw();
-
-% Display temporal variables
-
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_wMEM, {'correlation','scales'},'nbo');
-g.draw();
-
-% Display AUC and ROC information
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot(data_wMEM, {'sensitivity_30','specificity_30'}, 'nbo');
-g.draw();
-
-
-
-
-%% Combined analysis 
-
-data_MNE_select = extract_data(data_MNE,  @(data) ~data.isAvgFirst && data.isLowPass);
-data_MNE_select.label = repmat({'MNE'}, height(data_MNE_select), 1);
-
-data_cMEM_select = extract_data(data_MEM,  @(data) data.nbo == 4);
-data_cMEM_select.label = repmat({'cMEM'}, height(data_cMEM_select), 1);
-
-data_wMEM_select = extract_data(data_wMEM,  @(data) strcmp(data.wavelet_scale{1},'6  7  8') && data.nbo == 4 &&  data.isLowPass);
-data_wMEM_select.label = repmat({'wMEM'}, height(data_wMEM_select), 1);
-
-
-%%
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot([data_MNE_select ; data_cMEM_select; data_wMEM_select], {'RSA','SD','DLE'});
-g.draw();
-
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot([data_MNE_select ; data_cMEM_select; data_wMEM_select], {'ppv_30','npv_30'});
-g.draw();
-
-
-figure('units','normalized','outerposition',[0 0 1 1])
-g = plot_boxplot([data_MNE_select ; data_cMEM_select; data_wMEM_select], {'correlation','scales'},'nbo');
+fig = figure('units','normalized','outerposition',[0 0 1 1]);
+g = plot_boxplot( data_wMEM , {'DLE','SD', 'correlation'}, 'snr','isLowPass');
+g.set_title('Localization metrics')
+g.set_title('Localization of simulated task activity using wMEM')
+g.set_layout_options( 'legend',true);
+g.set_names('x','Method','Column','','y','Value', 'color','SNR', 'row','low-pass');
 g.draw();
 
 
+g.facet_axes_handles(1,1).YLim = [0, 30]; g.facet_axes_handles(2,1).YLim = [0, 30];
+g.facet_axes_handles(1,2).YLim = [0, 20]; g.facet_axes_handles(2,2).YLim = [0, 20];
+g.facet_axes_handles(1,3).YLim = [0, 1];  g.facet_axes_handles(2,3).YLim = [0, 1];
 
-%%
-data_roi = extract_data([data_MNE_select ; data_cMEM_select; data_wMEM_select],  @(data) strcmp(data.ROI, 'FOV_copy.48')); 
-display_results(data_roi)
+% Remove the background of the box
+arrayfun(@(x) set(x.box_handle, 'FaceAlpha', 0),  g(1).results.stat_boxplot)
+
+pause(1)
+saveas(fig,fullfile(output_folder,'annex_comparison_simulation_task_wmem.svg'));
+
+
+%% Annex. Impact of the pipeline on cMEM localization
+
+data1 = read_metrics(fullfile('data','metrics','metrics_task','metrics_cMEM_simul-task_-1.00dB_medium.csv'));
+data2 = read_metrics(fullfile('data','metrics','metrics_task','metrics_cMEM_simul-task_0.00dB_medium.csv'));
+data3 = read_metrics(fullfile('data','metrics','metrics_task','metrics_cMEM_simul-task_0.25dB_medium.csv'));
+
+data_cMEM  = [ data1; data2; data3];
+
+for i = 1:height(data_cMEM)
+    data_cMEM(i,'label') = {sprintf('NBO = %d',data_cMEM(i,:).nbo)};
+end
+
+clear g
+fig = figure('units','normalized','outerposition',[0 0 1 1]);
+g = plot_boxplot( data_cMEM , {'DLE','SD', 'correlation'}, 'snr');
+g.set_title('Localization metrics')
+g.set_title('Localization of simulated task activity')
+g.set_layout_options( 'legend',true);
+g.set_names('x','Method','Column','','y','Value', 'color','SNR');
+
+g.draw();
+
+g.facet_axes_handles(1,1).YLim = [0, 30];
+g.facet_axes_handles(1,2).YLim = [0, 20];
+g.facet_axes_handles(1,3).YLim = [0, 1];
+
+% Remove the background of the box
+arrayfun(@(x) set(x.box_handle, 'FaceAlpha', 0),  g(1).results.stat_boxplot)
+
+pause(1)
+saveas(fig, fullfile(output_folder,'annex_comparison_simulation_task_cmem.svg'));
 
 
 
 %% Function definitions
+
 
 function display_results(data)
     
@@ -192,15 +225,15 @@ function label = generate_label(data)
     
     switch(data.method{1})
 
-        case 'MNE'
-            if data.isAvgFirst
+        case { 'cMNE', 'MNE' } 
+            if ismember('isAvgFirst', data.Properties.VariableNames) && data.isAvgFirst
                 label_list{end+1} = 'Lowpass';
                 label_list{end+1} = 'Avg';
             end
             
             label_list{end+1} = 'MNE';
             
-            if ~data.isAvgFirst && data.isLowPass
+            if (ismember('isAvgFirst', data.Properties.VariableNames) && ~data.isAvgFirst) &&  (ismember('isLowPass', data.Properties.VariableNames) &&  data.isLowPass)
                 label_list{end+1} = 'Lowpass';
             end
 
@@ -307,81 +340,59 @@ function scale = extract_scale_numbers(data)
 
 end
 
-function g = plot_2D_scatterplot(x_val, y_val,x_label, y_label,  color, label, subset)
+function scale_method = extract_normalization(data)
 
-    g(1,1)= gramm('x', x_val ,'color', color, 'subset',subset);
-
-    g(1,1).set_layout_options(  'position',[0 0.8 0.8 0.2],... %Set the position in the figure (as in standard 'Position' axe property)
-                                'legend',false,... % No need to display legend for side histograms
-                                'margin_height',[0.02 0.05],... %We set custom margins, values must be coordinated between the different elements so that alignment is maintained
-                                'margin_width',[0.1 0.02],...
-                                'redraw',false); %We deactivate automatic redrawing/resizing so that the axes stay aligned according to the margin options
-    g(1,1).set_names('y','PDF');
-    g(1,1).stat_density("kernel","normal"); 
-    g(1,1).geom_vline('xintercept', 10,'style','--');
-    g(1,1).axe_property('XLim',[ 0, max(x_val(subset))], 'XTickLabel','');  
-    
-    
-    g(2,1)=gramm('x', x_val,'y',y_val ,'label', label,'color', color,'subset',subset);
-    g(2,1).set_names('x', x_label, 'y', y_label);
-    g(2,1).geom_point();  
-    g(2,1).stat_ellipse("geom","line","type","95percentile");
-    %g(2,1).geom_label();
-    g(2,1).geom_hline('yintercept', 20,'style','--');
-    g(2,1).geom_vline('xintercept', 10,'style','--');
-    
-    g(2,1).set_layout_options( ...
-        'legend',true,...
-        'Position',[0 0 0.8 0.8],...
-        'margin_height',[0.1 0.02],...
-        'margin_width',[0.1 0.02],...
-        'redraw',true);
-    g(2,1).axe_property('XLim',[ 0, max(x_val(subset))], 'Ylim',[ 0, max(y_val(subset))], 'Ygrid','on'); 
-    
-    
-    
-    %Create y data histogram on the right
-    g(3,1)=gramm('x',y_val,'color',color,'subset',subset);
-    g(3,1).set_layout_options(      'Position',[0.8 0 0.2 0.8],...
-        'legend',false,...
-        'margin_height',[0.1 0.02],...
-        'margin_width', [0.02 0.05],...
-        'redraw',false);
-    
-    g(3,1).set_names('x','');
-    g(3,1).stat_density(); 
-    g(3,1).geom_vline('xintercept', 20,'style','--');
-    g(3,1).coord_flip();
-    g(3,1).axe_property('XLim',[ 0, max(y_val(subset))], 'XTickLabel','');
-    
-    %Set global axe properties
-    g.set_point_options('base_size',8);
-    g.axe_property('TickDir','out','XGrid','on','GridColor',[0.5 0.5 0.5]);
-    g.set_title('metrics');
-    g.set_color_options('map','d3_10');
-
+    if contains(data.comment, 'norm')
+        if contains(data.comment, 'fixed')
+            scale_method = {'fixed'};
+        else
+            scale_method = {'adaptive'};
+        end
+    else
+        scale_method = {'NA'};
+    end
+           
 end
 
-function g = plot_boxplot(data_MNE, metrics, color)
+
+function g = plot_boxplot(data_MNE, metrics, color, x_split)
     
     S = stack(data_MNE, metrics, 'NewDataVariableName','Metric');
 
 
-    if nargin < 3
+    if nargin < 3 || isempty(color)
         color = S.method;
     else
         color = S.(color);
     end
 
+    if nargin < 4
+        x_grod = [];
+    else
+        x_grod = S.(x_split);
+    end
 
     
-    g = gramm("x",categorical(S.label),'y', S.Metric, 'color', color, 'label', S.ROI);
-    g.facet_grid([], S.Metric_Indicator,"scale","independent");
-    g.geom_jitter();
+    g = gramm("x",categorical(S.label),'y', S.Metric, 'color', categorical(color), 'label', S.ROI);
+    g.facet_grid(categorical(x_grod), categorical(S.Metric_Indicator),"scale","independent");
+    g.geom_jitter('dodge',0.7,'alpha', 0.7);
     g.stat_boxplot();
-    g.set_names('x','operation order','Column','','y','Value');
+    g.set_names('x','Method','Column','','y','Value');
     g.no_legend();
-    g.set_text_options("base_size", 30, "font", 'Times New Roman');
+    g.set_text_options("base_size", 15, "font", 'Times New Roman');
     g.set_title(sprintf('Influence of operation order %s source localization', strjoin(unique(S.method),', ')));
+
+end
+
+function data = read_metrics(file)
+
+    data        = readtable(file);
+    data        = add_column(data, 'nbo', @extract_nbo);
+    data        = add_column(data, 'wavelet_scale', @extract_scale_numbers);
+    data        = add_column(data, 'wavelet_scale_method', @extract_normalization);
+    data        = add_column(data, 'roi_idx', @extract_roi_name);
+    data        = add_column(data, 'isLowPass', @(data) (contains(data.comment, 'low') || ~contains(data.comment, 'Avg')));
+    data        = add_column(data, 'isAvgFirst', @(data) ~contains(data.comment, 'Avg'));
+    data        = add_column(data, 'label', @generate_label);
 
 end

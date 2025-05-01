@@ -255,7 +255,7 @@ function [data_simul, groundTruth, groundTruthHead, SNR_est, ChannelFlag, event]
     
     [~,I] = max(var(data_head,[],2)); % find the sensors to use to fix the SNR
     SNR = 10^(activation.options.SNR)/10;
-    k = sqrt(SNR * var(noise_data(I,:),[],2) / var(data_head(I,:),[],2));
+    k = sqrt(SNR * max(var(noise_data,[],2)) / var(data_head(I,:),[],2));
 
     data_simul = noise.F;
     data_simul(selected_chans, :) =  k*data_head + noise_data ;

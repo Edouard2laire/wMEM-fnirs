@@ -12,18 +12,18 @@ SubjectName   = {'sub-01'};
 %     'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbO_240903_1404.mat', ...
 %     'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_cMEM_|_timewindow:_-10_to_35s_|_smooth=0.6_|_HbR_240903_1404.mat'};
 
+
 sFilesGRP{1} = {...
-    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMNE_sources_-_HbO_240903_1406_WAvg.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMNE_sources_-_HbR_240903_1406_WAvg.mat'};
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band/results_NIRS_MNE_sources__|_HbO_250412_1656_winavg_250412_1656.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band/results_NIRS_MNE_sources__|_HbR_250412_1656_winavg_250412_1656.mat'};
 
 sFilesGRP{2} = {...
-    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j3__4__5__6__7__8__9)_|_HbO_240903_1415_WAvg.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j3__4__5__6__7__8__9)_|_HbR_240903_1416_WAvg.mat'};
-
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band/results_NIRS_cMEM__timewindow__5_to_1123.2s__smooth=0.6___HbO_250412_1649_winavg_250412_1656.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band/results_NIRS_cMEM__timewindow__5_to_1123.2s__smooth=0.6___HbR_250412_1649_winavg_250412_1656.mat'};
 
 sFilesGRP{3} = {...
-    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j6__7__8__9)_|_HbO_240903_1419_WAvg.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_pipeline-liberal/results_NIRS_wMEM_|_smooth=0.6_DWT(j6__7__8__9)_|_HbR_240903_1419_WAvg.mat'};
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band/results_NIRS_wMEM__smooth=0.6_DWT(j1___2___3___4___5___6___7___8___9__10)___HbO_250414_2212_winavg_250414_2213.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band/results_NIRS_wMEM__smooth=0.6_DWT(j1___2___3___4___5___6___7___8___9__10)___HbR_250414_2212_winavg_250414_2213.mat'};
 
 
 
@@ -31,18 +31,18 @@ ROI_label     = {'hand'};
 t_snapshot                  = [13];
 
 %% Options
-fig_label                   = {'cMEM (filter)', 'cMEM','MNE', 'wMEM(all scale)', 'wMEM (selected scale)'}; 
+fig_label                   = {'MNE', 'cMEM', 'wMEM'}; 
 %fig_label                   = {'OLD','NEW'}; 
 
 fig_ROI_label               = {'Motor'};
 toi                         = [-10 30];          
-y_lim                       = [-50 100]; 
+y_lim                       = [-0.5 1.5]; 
 colors                      = {'g','r','b'};
 options.same_scale          = 1;
 options.do_normalize        = 0;
 options.variance            = 0; % 0 = no var, 1 = spatial variance, 2 = trials variance (std error)
 options.save_colbar         = 1;
-options.fig_path            = '/Users/edelaire1/Documents/Etude/04_PHD/Abstract/2024_fNIRS_UK/figure_tapping';
+options.fig_path            = '/Users/edelaire1/Documents/Project/wMEM-fnirs/Figure/tapping';
 options.save_fig            = 1 ; % 0: No save, 1 save Time course, 2 Save Time-course anad Figure, 3, save only figure
 options.save_fig_method     = 'saveas'; % 'saveas', 'export_fig'
 options.export_fig_dpi      = 90;
@@ -93,8 +93,8 @@ for k = 1:length(sFilesGRP)
         sFiles  = sFilesGRP{k};
     end
 
-    HbO = in_bst_data(sFiles{1});
-    HbR = in_bst_data(sFiles{2});  
+    HbO = in_bst_results(sFiles{1});
+    HbR = in_bst_results(sFiles{2});  
     
     %data    =  in_bst_data(HbO.DataFile);
 
@@ -128,20 +128,18 @@ for k = 1:length(sFilesGRP)
             std_mem_hbr = zeros(1,length(time));
         end
 
-        shadedErrorBar(time, mean(mem_hbo),  std_mem_hbo,'lineProps' , {'LineWidth',LineWidth, 'Color',color_red(k,:)});
-        shadedErrorBar(time, mean(mem_hbr),  std_mem_hbo,'lineProps' , {'LineWidth',LineWidth , 'Color',color_blue(k,:)});
+        shadedErrorBar(time, mean(mem_hbo) ./ max(mean(mem_hbo)),  std_mem_hbo,'lineProps' , {'DisplayName',[ fig_label{k} ' - HbO'], 'LineWidth', LineWidth, 'Color',color_red(k,:)});
+        shadedErrorBar(time, mean(mem_hbr) ./ max(mean(mem_hbo)),  std_mem_hbo,'lineProps' , {'DisplayName',[ fig_label{k} ' - HbR'], 'LineWidth', LineWidth , 'Color',color_blue(k,:)});
         
-            
         ylim(y_lim) 
         y_lim_rec = ylim(gca);
 
         %title(sprintf('%s - %s',fig_ROI_label{i}, fig_label{k}))
         
         xlim(toi);
-        set(gca,'Color',[1,1,1]);
-        set(gcf,'color','w');
-
-        set(gca,'fontsize', fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',LineWidth);
+        set(gca,    'Color',[1,1,1]);
+        set(gcf,    'color','w');
+        set(gca,    'fontsize', fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',LineWidth);
 
         if k == length(sFilesGRP)
             xlabel('Time(s)');
@@ -150,13 +148,21 @@ for k = 1:length(sFilesGRP)
         if i == 1
             ylabel('Amplitude');
         end    
-        plot(time, zeros(1,length(time)), 'k--','LineWidth',LineWidth);
+        yline(0, 'k--','LineWidth',LineWidth);
         
        for kl=1:length(t_snapshot)
-            line([t_snapshot(kl) t_snapshot(kl)], ylim(gca))
+            xline(t_snapshot(kl))
        end   
-       line([ 0 0 ], ylim(gca),'Color','black','LineStyle', '--' )
+       xline(0,'Color','black','LineStyle', '--' )
     end 
+
+    legend()
+
+    allChildren = get(gca, 'Children');                % list of all objects on axes
+    displayNames = get(allChildren, 'DisplayName');    % list of all legend display names
+    
+    % Remove object associated with "data1" in legend
+    delete(allChildren(contains(displayNames, 'data')))
 end
 
 
@@ -166,44 +172,45 @@ end
 
 % 
 % 
-% for k = 1:length(sFilesGRP)
-%     sFiles= sFilesGRP{k};
-% 
-%     hHbO = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
-%                                      sFiles{1}, 'NIRS', 'NewFigure');
-% 
-%     hHbR = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
-%                                       sFiles{2}, 'NIRS', 'NewFigure');
-% 
-%     hFigSurfData{k} = {hHbO, hHbR};
-% end
-% 
-% if options.save_fig == 2 || options.save_fig == 3 
-% 
-% 
-%     input('Make figure ready HbO') 
-% 
-%     for k = 1:length(t_snapshot)
-% 
-%         panel_time('SetCurrentTime',  t_snapshot(k))
-% 
-%         for i_file = 1:length(sFilesGRP)
-%             tmp = hFigSurfData{i_file}; 
-%             out_figure_image(tmp{1}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbO',t_snapshot(k)))
-%         end
-%     end
-% 
-%     input('Make figure ready HbR') 
-% 
-%     for k = 1:length(t_snapshot)
-% 
-%         panel_time('SetCurrentTime',  t_snapshot(k))
-% 
-%         for i_file = 1:length(sFilesGRP)
-%             tmp = hFigSurfData{i_file}; 
-%             out_figure_image(tmp{2}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbR',t_snapshot(k)))
-%         end
-%     end
-% 
-% 
-% end
+if options.save_fig == 2 || options.save_fig == 3 
+
+    for k = 1:length(sFilesGRP)
+        sFiles= sFilesGRP{k};
+    
+        hHbO = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
+                                         sFiles{1}, 'NIRS', 'NewFigure');
+    
+        hHbR = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, ...
+                                          sFiles{2}, 'NIRS', 'NewFigure');
+    
+        hFigSurfData{k} = {hHbO, hHbR};
+    end
+
+
+
+    input('Make figure ready HbO') 
+
+    for k = 1:length(t_snapshot)
+
+        panel_time('SetCurrentTime',  t_snapshot(k))
+
+        for i_file = 1:length(sFilesGRP)
+            tmp = hFigSurfData{i_file}; 
+            out_figure_image(tmp{1}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbO',t_snapshot(k)))
+        end
+    end
+
+    input('Make figure ready HbR') 
+
+    for k = 1:length(t_snapshot)
+
+        panel_time('SetCurrentTime',  t_snapshot(k))
+
+        for i_file = 1:length(sFilesGRP)
+            tmp = hFigSurfData{i_file}; 
+            out_figure_image(tmp{2}, sprintf('%s/3_%s_%s_%s_%ds_focus.png',options.fig_path,SubjectName{:},fig_label{i_file},'HbR',t_snapshot(k)))
+        end
+    end
+
+
+end

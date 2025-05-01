@@ -21,14 +21,15 @@ Jmeas = abs(J(:,peak)) / max(abs(J(:,peak))); % normalisation entre 0 et 1 du ve
 
 
 for i = 1:nb_resampling
-    [Res_close(i),Res_far(i)]   = Compute_AUC_global(Mesh, Jtheo, Jmeas,  VoisinsOA, clusters, ordreVoisinage, 0,thresholds, area);
+    [Res_close(i),Res_far(i)]   = Compute_AUC_global(Jtheo, Jmeas,  VoisinsOA, clusters, ordreVoisinage, thresholds, area);
 end
 
-Res_close_summary = struct();
-Res_far_summary = struct();
-Res_summary = struct();
+Res_close_summary   = struct();
+Res_far_summary     = struct();
+Res_summary         = struct();
 
 fields = fieldnames(Res_close);
+
 for i = 1:length(fields)
     data_close =  cell2mat({Res_close.(fields{i})});
     if size(data_close,2) == nb_resampling

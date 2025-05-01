@@ -59,10 +59,10 @@ end
 for i = 1:nbtest
     Jthresh = (J >= thresholds(i));
 
-    Roc_struct.tp(i) = sum(Jthresh .* Jtheo); %/ sum(Jthresh)
-    Roc_struct.tn(i) = sum(~(Jthresh) .* Jfictif); %/ sum(~Jthresh)
-    Roc_struct.fp(i) = sum(Jthresh .* Jfictif); %/ sum(Jthresh)
-    Roc_struct.fn(i) = sum(~(Jthresh) .* (Jtheo)); % / sum(~Jthresh) 
+    Roc_struct.tp(i) = sum(Jthresh .* Jtheo);  
+    Roc_struct.tn(i) = sum(~(Jthresh) .* Jfictif);  
+    Roc_struct.fp(i) = sum(Jthresh .* Jfictif);  
+    Roc_struct.fn(i) = sum(~(Jthresh) .* (Jtheo)); 
     
     
     Roc_struct.specificity(i) =   Roc_struct.tn(i) /  (Roc_struct.tn(i) + Roc_struct.fp(i));
@@ -73,10 +73,10 @@ for i = 1:nbtest
     
     
     if ~isempty(area)
-        Roc_struct.tp_area(i) = sum(area( find(Jthresh .* Jtheo))); 
-        Roc_struct.tn_area(i) = sum(area( find(~(Jthresh) .* Jfictif)));
-        Roc_struct.fp_area(i) = sum(area( find(Jthresh .* Jfictif))); 
-        Roc_struct.fn_area(i) = sum(area( find(~(Jthresh) .* (Jtheo)))); 
+        Roc_struct.tp_area(i) = sum(area (Jthresh .* Jtheo)); 
+        Roc_struct.tn_area(i) = sum(area (~(Jthresh) .* Jfictif));
+        Roc_struct.fp_area(i) = sum(area (Jthresh .* Jfictif)); 
+        Roc_struct.fn_area(i) = sum(area (~(Jthresh) .* (Jtheo))); 
     
     
         Roc_struct.specificity_area(i) =   Roc_struct.tn_area(i) /  (Roc_struct.tn_area(i) + Roc_struct.fp_area(i));
@@ -87,4 +87,6 @@ for i = 1:nbtest
     end
 
 end
+Roc_struct.thresholds = thresholds;
 
+end
