@@ -46,6 +46,51 @@ fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_zoomed.svg'));
 
+%% Figure 2. Plot Averaged signal on the scalp
+
+channel_file = {'HW1/HW1_task_preproc_Hb_02/channel_nirsbrs.mat'};
+
+sFiles = { 'HW1/HW1_task_preproc_Hb_02/data_hb_250505_1246.mat'};
+
+OPTIONS.selected_channel = 'S26D25';
+OPTIONS.TimeSegment = [0 220];
+if isfield(OPTIONS, 'vline')
+    OPTIONS = rmfield(OPTIONS, 'vline');
+end
+
+OPTIONS.title = 'Entire recording'; OPTIONS.plot_montage = 1;
+fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
+OPTIONS.fig = fig;
+plot_timecouse_channels(channel_file{1}, sFiles{1}, OPTIONS)
+saveas(fig,fullfile(OPTIONS.output_folder, 'signal_head_all.svg'));
+close(fig)
+
+%%
+OPTIONS.vline       = 13; OPTIONS.montage = 'HbO[tmp]';
+OPTIONS.selected_channel = 'S26D25';
+
+fig = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
+saveas(fig,fullfile(OPTIONS.output_folder, 'topography_avg_HbO.svg'));
+close(fig)
+
+OPTIONS.vline       = 13; OPTIONS.montage = 'HbR[tmp]';
+OPTIONS.selected_channel = 'S26D25';
+
+fig = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
+saveas(fig,fullfile(OPTIONS.output_folder, 'topography_avg_HbR.svg'));
+close(fig)
+
+%%
+channel_file = {'HW1/HW1_task_preproc_Hb_02/channel_nirsbrs.mat'};
+sFiles = { 'HW1/HW1_task_preproc_Hb_02/data_hb_250505_1217.mat'};
+OPTIONS.selected_channel = 'S26D25';
+OPTIONS.TimeSegment = [-10 30];
+OPTIONS.title = 'Averaged signal'; OPTIONS.plot_montage = 0;
+fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
+plot_timecouse_channels(channel_file{1}, sFiles{1}, OPTIONS)
+saveas(fig,fullfile(OPTIONS.output_folder, 'signal_head_avg.svg'));
+close(fig)
+
 
 %% Figure 2. Figure of the averaged timecourse
 sFilesGRP       = {};
@@ -80,6 +125,119 @@ plot_brain(SubjectName, sFiles,sFiles_label,  OPTIONS)
 
 
 %% Function definition
+
+
+function hFig = plot_topography(SubjectName,channel_file,  sFiles, OPTIONS)
+    [hFig, iDS, iFig] = view_topography(sFiles , 'NIRS', '3DSensorCap');
+    
+    panel_montage('SetCurrentMontage',hFig, OPTIONS.montage)
+    bst_figures('SetBackgroundColor',hFig, [1 1 1])
+    figure_3d('SetStandardView',hFig, {'left'});
+    panel_time('SetCurrentTime',  OPTIONS.vline)
+
+    sSubject    = bst_get('Subject',SubjectName{1});
+    panel_surface('AddSurface', hFig, sSubject.Surface(sSubject.iCortex).FileName);
+
+    sChannels = in_bst_channel(channel_file);
+    iChannels = channel_find(sChannels.Channel, {OPTIONS.selected_channel});
+
+    scs = sChannels.Channel(iChannels(1)).Loc;
+    mid = mean(scs, 2);
+
+    hold on;
+    plot3(gca, mid(1),  mid(2),mid(3), 'o', 'Color','black','MarkerSize',15,'MarkerFaceColor','black')
+end
+
+function plot_timecouse_channels(channel_file, sFile, OPTIONS)
+    
+    sChannels = in_bst_channel(channel_file);
+
+    if OPTIONS.plot_montage
+        [hFig, iDS, iFig] = view_channels_3d(channel_file,  'NIRS-BRS', 'scalp', 0, 0);
+        bst_figures('SetBackgroundColor',hFig, [1 1 1])
+        figure_3d('SetStandardView',hFig, {'left'});
+
+        figure(OPTIONS.fig);
+        tiledlayout(1,2)
+    
+        ax = nexttile(); 
+
+
+        copyobj(allchild(get(hFig, 'CurrentAxes')), ax);
+        view(ax, [-0.0108    0.9694    0.0072]);
+        camup(ax, [0.0515   -0.0093    0.9906]);
+        camlight(findobj(ax, '-depth', 1, 'Tag', 'FrontLight'), 'headlight');
+        axis off
+
+        title('a. Montage');
+        ax.TitleHorizontalAlignment = 'left';
+        set(ax,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',OPTIONS.LineWidth);
+        close(hFig)
+    
+    else
+        tiledlayout(1,1);
+    end
+
+    sData = in_bst_data(sFile);
+    iChannels_good = good_channel(sChannels.Channel, sData.ChannelFlag, 'nirs');
+    iChannels = channel_find(sChannels.Channel, {OPTIONS.selected_channel});
+    iChannels = intersect(iChannels,iChannels_good);
+
+    data = sData.F(iChannels, :);
+    norm_factor = max(data(1,:));
+
+    data = data ./ norm_factor; 
+
+    ax = nexttile(); 
+    hold on;
+    plot(ax, sData.Time, data(1,:) , 'DisplayName',[ 'HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_red(1,:));
+    plot(ax, sData.Time, data(2,:) , 'DisplayName',[ 'HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_blue(1,:));
+
+    xlim(OPTIONS.TimeSegment);
+    ylim([-1.5 1.5]); yticks([-1 0 1])
+
+    if isempty(sData.Events)
+        sData.Events = db_template('Event');
+        sData.Events.label  = 'task';
+        sData.Events.times  = [0 ; 16];
+    end
+
+    events      = sData.Events;
+    tapping     =  events( strcmp( {events.label}, 'task'));
+    
+    for iTapping = 1:size(tapping.times,2)
+        rectangle('Position', [ tapping.times(1,iTapping), min(ylim(gca)) , ...
+            diff(tapping.times(:,iTapping)), max(ylim(gca)) - min(ylim(gca))], ...
+            'FaceColor', [0.3 00.1, 0.7, 0.3] , ...
+            'EdgeColor', [ 0 0 0 0]);
+        
+    end
+
+
+    if isfield(OPTIONS, 'vline') && ~isempty(OPTIONS.vline)
+        xline(OPTIONS.vline,'Color','black','LineStyle', '--' )
+    end
+
+    xlabel('Time(s)');
+    ylabel('Amplitude');
+    
+    if OPTIONS.plot_montage
+        title(sprintf('b. Recording for %s',OPTIONS.selected_channel));
+    else
+        title(sprintf('a. Recording for %s',OPTIONS.selected_channel));
+    end
+    ax.TitleHorizontalAlignment = 'left';
+
+
+    sgt = sgtitle(sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
+    sgt.FontSize = 25; sgt.FontWeight = 'Bold';
+
+    set(gca,    'Color',[1,1,1]);
+    set(gcf,    'color','w');
+    set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',OPTIONS.LineWidth);
+
+end
+
 
 function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
     
