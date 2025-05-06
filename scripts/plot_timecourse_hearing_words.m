@@ -168,6 +168,12 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
         view(ax, [-0.0108    0.9694    0.0072]);
         camup(ax, [0.0515   -0.0093    0.9906]);
         camlight(findobj(ax, '-depth', 1, 'Tag', 'FrontLight'), 'headlight');
+
+        % Center the montage in the screen
+        xlim([-0.1209    0.1291])
+        ylim([-0.1003    0.0997])
+        zlim([-0.0387    0.1613])
+
         axis off
 
         t1 = title(ax, 'a. Montage');
