@@ -8,16 +8,35 @@ OPTIONS.color_red = [215,48,39 ; ...
              254,224,144] ./ 255;
 
 
-OPTIONS.color_blue =  [69,117,180 ;...
-                      145,191,219; ...
-                      224,243,248] ./ 255;
-OPTIONS.LineWidth = 2.5;
-OPTIONS.fontsize  = 20;
+OPTIONS.color_blue  =  [69, 117, 180 ;...
+                       145, 191, 219; ...
+                       224, 243, 248] ./ 255;
+OPTIONS.LineWidth   = 2.5;
+OPTIONS.fontsize    = 20;
 OPTIONS.output_folder = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs/Figure','hearing_words');
 
 if ~exist(OPTIONS.output_folder)
-    mkdir(OPTIONS.output_folder )
+    mkdir(OPTIONS.output_folder)
 end
+
+%% Part 1. Plot Recording on the scalp
+
+channel_file = {'HW1/HW1_task_preproc_Hb_02/channel_nirsbrs.mat'};
+sFiles       = {'HW1/HW1_task_preproc_Hb_02/data_hb_250505_1246.mat'};
+
+OPTIONS.selected_channel = 'S26D25';
+OPTIONS.TimeSegment      = [0 220];
+if isfield(OPTIONS, 'vline')
+    OPTIONS = rmfield(OPTIONS, 'vline');
+end
+
+OPTIONS.title = ''; OPTIONS.plot_montage = 1;
+fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
+OPTIONS.fig = fig;
+plot_timecouse_channels(channel_file{1}, sFiles{1}, OPTIONS)
+saveas(fig,fullfile(OPTIONS.output_folder, 'signal_head_all.svg'));
+close(fig)
+
 
 %% Figure 1 and 2. Figure of the entire signal. 
 sFiles       = {};
@@ -34,36 +53,18 @@ sFiles{2} = {...
 sFiles_label                   = {'a. MNE', 'c. wMEM'}; 
 
 OPTIONS.TimeSegment = [0 220];
-OPTIONS.title       = 'Reconstructed Timecourse';
+OPTIONS.title       = '';
 fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_all.svg'));
 
 
 OPTIONS.TimeSegment = [110 140];
-OPTIONS.title       = 'Reconstructed Timecourse';
+OPTIONS.title       = '';
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_zoomed.svg'));
 
-%% Figure 2. Plot Averaged signal on the scalp
-
-channel_file = {'HW1/HW1_task_preproc_Hb_02/channel_nirsbrs.mat'};
-
-sFiles = { 'HW1/HW1_task_preproc_Hb_02/data_hb_250505_1246.mat'};
-
-OPTIONS.selected_channel = 'S26D25';
-OPTIONS.TimeSegment = [0 220];
-if isfield(OPTIONS, 'vline')
-    OPTIONS = rmfield(OPTIONS, 'vline');
-end
-
-OPTIONS.title = 'Entire recording'; OPTIONS.plot_montage = 1;
-fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
-OPTIONS.fig = fig;
-plot_timecouse_channels(channel_file{1}, sFiles{1}, OPTIONS)
-saveas(fig,fullfile(OPTIONS.output_folder, 'signal_head_all.svg'));
-close(fig)
 
 %%
 OPTIONS.vline       = 13; OPTIONS.montage = 'HbO[tmp]';
@@ -158,7 +159,7 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
         figure_3d('SetStandardView',hFig, {'left'});
 
         figure(OPTIONS.fig);
-        tiledlayout(1,2)
+        t = tiledlayout(1,2, 'TileSpacing','tight','Padding','none'); 
     
         ax = nexttile(); 
 
@@ -169,13 +170,13 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
         camlight(findobj(ax, '-depth', 1, 'Tag', 'FrontLight'), 'headlight');
         axis off
 
-        title('a. Montage');
+        t1 = title(ax, 'a. Montage');
         ax.TitleHorizontalAlignment = 'left';
-        set(ax,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',OPTIONS.LineWidth);
+        set(ax,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
         close(hFig)
     
     else
-        tiledlayout(1,1);
+        t = tiledlayout(1,1, 'TileSpacing','tight','Padding','none'); 
     end
 
     sData = in_bst_data(sFile);
@@ -222,19 +223,24 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
     ylabel('Amplitude');
     
     if OPTIONS.plot_montage
-        title(sprintf('b. Recording for %s',OPTIONS.selected_channel));
+        t2 = title(ax, sprintf('b. Recording for %s',OPTIONS.selected_channel));
     else
-        title(sprintf('a. Recording for %s',OPTIONS.selected_channel));
+        t2 = title(sprintf('a. Recording for %s',OPTIONS.selected_channel));
     end
     ax.TitleHorizontalAlignment = 'left';
+    set(ax,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
 
+    % HACK
+    t2.Position(2) = t2.Position(2) + 0.02;
 
-    sgt = sgtitle(sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
-    sgt.FontSize = 25; sgt.FontWeight = 'Bold';
+    if ~isempty(OPTIONS.title)
+        sgt = title(t, sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
+        sgt.FontSize = 40; sgt.FontWeight = 'Bold';
+    end
 
     set(gca,    'Color',[1,1,1]);
     set(gcf,    'color','w');
-    set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',OPTIONS.LineWidth);
+    set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
 
 end
 
@@ -272,6 +278,9 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
         plot(Time, HbO , 'DisplayName',[ sFiles_label{k} ' - HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_red(1,:));
         plot(Time, HbR , 'DisplayName',[ sFiles_label{k} ' - HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_blue(1,:));
         
+        xlim(OPTIONS.TimeSegment);
+        ylim([-1.5 1.5]); yticks([-1 0 1])
+               
         title(sFiles_label{k})
         ax1.TitleHorizontalAlignment = 'left'; 
         axes(end+1) = ax1;
@@ -304,9 +313,7 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
         end
         ylabel('Amplitude');
         
-        xlim(OPTIONS.TimeSegment);
-        ylim([-1.5 1.5]); yticks([-1 0 1])
-        
+
         set(gca,    'Color',[1,1,1]);
         set(gcf,    'color','w');
         set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',OPTIONS.LineWidth);
@@ -315,9 +322,10 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
     end
     linkaxes(axes,'xy')
     
-    sgt = sgtitle(sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
-    sgt.FontSize = 25; sgt.FontWeight = 'Bold';
-
+    if ~isempty(OPTIONS.title )
+        sgt = sgtitle(sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
+        sgt.FontSize = 25; sgt.FontWeight = 'Bold';
+    end
 
 end
 
