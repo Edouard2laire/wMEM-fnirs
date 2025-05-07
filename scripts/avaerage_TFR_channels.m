@@ -22,11 +22,6 @@ new_frequency = logspace( log10(0.002), log10(0.5), 500);
 sleep_stage  = {'Wake'};
 epi_activity = {'bursts', 'spikes_LR', 'spikes_RL', 'spikes_bilat', 'single_s'};
 
-%% Inputs -- TEMPORAL RIGHT
-sFilesCortex = {'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/timefreq_wavelet_250401_1301.mat' ; ...
-                'sub-02/sub-02_task-rest_run-01_pipeline-preproc/timefreq_wavelet_250401_1321.mat'};
-
-sFilesData   =  { 'sub-02/sub-02_task-rest_run-01_pipeline-preproc_Hb/data_hb_250401_1218.mat'};
 
 fprintf(' %d files detected \n', length(sFilesCortex));
 
@@ -35,7 +30,7 @@ iFile = 1;
 
 sData = in_bst_timefreq(sFilesCortex{iFile});
 options = sData.Options;
-options.wavelet = rmfield(options.wavelet,'freqWindow');
+%options.wavelet = rmfield(options.wavelet,'freqWindow');
 options.colormap = 'jet';
 options.clim = [0 0.25];
 options.wavelet.display.fontscale = 44;
