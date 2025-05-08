@@ -1,6 +1,8 @@
 
 SubjectName   = {'sub-01'};
 
+%figure_setting();
+
 
 OPTIONS = struct();
 OPTIONS.color_red = [215,48,39 ; ...
@@ -29,11 +31,13 @@ if isfield(OPTIONS, 'vline')
 end
 
 OPTIONS.title = ''; OPTIONS.plot_montage = 1;
-fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
-OPTIONS.fig = fig;
+hFig = figure('Units','pixels','Position', getFigureSize(42.7, 22.5));
+set(hFig, 'PaperPositionMode', 'auto');
+hold on;
+OPTIONS.fig = hFig;
 plot_timecouse_channels(channel_file{1}, sFiles{1}, OPTIONS)
-saveas(fig,fullfile(OPTIONS.output_folder, 'signal_head_all.svg'));
-%close(fig)
+saveas(hFig,fullfile(OPTIONS.output_folder, 'signal_head_all.svg'));
+%close(hFig)
 
 
 %% Figure 1 and 2. Figure of the entire signal. 
@@ -52,16 +56,20 @@ sFiles_label                   = {'a. MNE', 'c. wMEM'};
 
 OPTIONS.TimeSegment = [10 1120];
 OPTIONS.title       = '';
-fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
+hFig = figure('Units','pixels','Position', getFigureSize(42.7, 22.5));
+set(hFig, 'PaperPositionMode', 'auto'); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
-saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_all.svg'));
+saveas(hFig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_all.svg'));
+close(hFig)
 
 
 OPTIONS.TimeSegment = [620 660];
 OPTIONS.title       = '';
-fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
+hFig = figure('Units','pixels','Position', getFigureSize(14.6, 22.500));
+set(hFig, 'PaperPositionMode', 'auto');hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
-saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_zoomed.svg'));
+saveas(hFig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_zoomed.svg'));
+close(hFig)
 
 
 %% Plot Average 
@@ -72,18 +80,16 @@ channel_file = {'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/c
 OPTIONS.vline       = 13; OPTIONS.montage = 'HbO[tmp]';
 OPTIONS.selected_channel = {};
 
-fig = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
-saveas(fig,fullfile(OPTIONS.output_folder, 'topography_avg_HbO.svg'));
-close(fig)
+hFig = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
+saveas(hFig,fullfile(OPTIONS.output_folder, 'topography_avg_HbO.svg'));
 
 OPTIONS.vline       = 13; OPTIONS.montage = 'HbR[tmp]';
 OPTIONS.selected_channel = {};
 
-fig = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
-saveas(fig,fullfile(OPTIONS.output_folder, 'topography_avg_HbR.svg'));
-close(fig)
+fig_topo_HbR = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
+saveas(fig_topo_HbR,fullfile(OPTIONS.output_folder, 'topography_avg_HbR.svg'));
+%% 
 
-%%
 
 sFiles = { 'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/data_hb_250506_1460.mat'};
 channel_file = {'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/channel_nirsbrs.mat'};
@@ -91,39 +97,93 @@ channel_file = {'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/c
 OPTIONS.selected_channel = {};
 OPTIONS.TimeSegment = [-10 30];
 
+
 OPTIONS.title = 'Averaged signal'; OPTIONS.plot_montage = 0;
-fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
+hFig = figure('Units','pixels','Position', getFigureSize(42.7, 22.5));
+set(hFig, 'PaperPositionMode', 'auto'); hold on;
 plot_timecouse_channels(channel_file{1}, sFiles{1}, OPTIONS)
-saveas(fig,fullfile(OPTIONS.output_folder, 'signal_head_avg.svg'));
-close(fig)
 
+ax = nexttile(); 
+set(ax,    'fontsize', OPTIONS.fontsize,  'LineWidth',OPTIONS.LineWidth);
 
+sFiles = { 'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/data_hb_250506_1460.mat'};
+OPTIONS.vline       = 13; OPTIONS.montage = 'HbO[tmp]';
+
+fig_topo = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
+    copyobj(allchild(get(fig_topo, 'CurrentAxes')), ax);
+    % view(ax, 0.8855,  10.3315);
+    % campos(ax, [ 0.0455   -2.0350    0.4073]);
+    % camtarget(ax, [0.0140    0.0018    0.0360]);
+    % camup(ax, [0, 0, 1]);
+    % 
+    % % Center the montage in the screen
+    % xlim(ax, [ -0.0854    0.1133])
+    % ylim(ax, [-0.0809    0.0963])
+    % zlim(ax, [ -0.0218    0.1711])
+
+    axis(ax, 'equal')
+    axis(ax, 'off')
+t = title(ax, 'b. Topography - HbO', 'FontSize',   OPTIONS.fontsize + 10);
+%t.Position = [0    0.1481    0.1500];
+close(fig_topo)
+
+ax = nexttile(); 
+set(ax,    'fontsize', OPTIONS.fontsize,  'LineWidth', OPTIONS.LineWidth);
+
+sFiles = { 'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/data_hb_250506_1460.mat'};
+OPTIONS.vline       = 13; OPTIONS.montage = 'HbR[tmp]';
+
+fig_topo = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
+    ax.Box
+    copyobj(allchild(get(fig_topo, 'CurrentAxes')), ax);
+    % view(ax, 0.8855,  10.3315);
+    % campos(ax, [ 0.0455   -2.0350    0.4073]);
+    % camtarget(ax, [0.0140    0.0018    0.0360]);
+    % camup(ax, [0, 0, 1]);
+    % 
+    % % Center the montage in the screen
+    % xlim(ax, [ -0.0854    0.1133])
+    % ylim(ax, [-0.0809    0.0963])
+    % zlim(ax, [ -0.0218    0.1711])
+
+    axis(ax, 'equal')
+    axis(ax, 'off')
+
+t2 = title(ax,'c. Topography - HbR', 'FontSize', OPTIONS.fontsize + 10);
+%t2.Position(1) = 0; 
+
+close(fig_topo)
+
+saveas(hFig,fullfile(OPTIONS.output_folder, 'signal_head_avg.svg'));
+close(hFig)
 %% Figure 2. Figure of the averaged timecourse
 sFilesGRP       = {};
 
+
 sFiles{1} = {...
-    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_MNE_sources____HbO_250506_1411_winavg_250506_1421.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_MNE_sources____HbR_250506_1411_winavg_250506_1421.mat', ...
-    };
-sFiles{2} = {...
     'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_cMEM___timewindow__-10_to_30s___smooth=0.6____HbO_250506_1456.mat', ...
     'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_cMEM___timewindow__-10_to_30s___smooth=0.6____HbR_250506_1456.mat'};
 
-sFiles{3} = {...
-    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbO_250506_1418_winavg_250506_1421.mat', ...
-    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbR_250506_1418_winavg_250506_1421.mat', ...
-    };
+sFiles{2} = {...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_MNE_sources____HbO_250506_1411_low_winavg_250507_1548.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_MNE_sources____HbR_250506_1411_low_winavg_250507_1548.mat'};
 
-sFiles_label                   = {'a. MNE','b. cMEM', 'c. wMEM'}; 
+sFiles{3} = {...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbO_250506_1418_low_winavg_250507_1548.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbR_250506_1418_low_winavg_250507_1548.mat'};
+
+
+sFiles_label                   = {'a. cMEM', 'b. MNE',  'c. wMEM'}; 
 
 
 OPTIONS.TimeSegment = [-10 30];
 OPTIONS.title       = '';
 OPTIONS.vline       = 13;
 
-fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
+hFig = figure('Units','pixels','Position', getFigureSize(14.6, 22.500));
+set(hFig, 'PaperPositionMode', 'auto');hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
-saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_avg.svg'));
+saveas(hFig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_avg.svg'));
 
 
 OPTIONS.vline       = 13;
@@ -179,13 +239,11 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
         hDestAxes = findobj(hFig, '-depth', 1, 'Tag', 'Axes3D');
         set(hDestAxes, 'CameraViewAngle', 6.6203);
         camlight(findobj(hDestAxes, '-depth', 1, 'Tag', 'FrontLight'), 'headlight');
-
+        
         figure(OPTIONS.fig);
         t = tiledlayout(1,2); 
     
         ax = nexttile(); 
-
-
         copyobj(allchild(get(hFig, 'CurrentAxes')), ax);
         view( 6.2090,  37.7139);
         campos([ 0.2125   -1.0487    0.8715]);
@@ -201,18 +259,19 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
         zlim([-0.0387    0.1613])
 
         axis off
-
-        t1 = title(ax, 'a. Montage');
         ax.TitleHorizontalAlignment = 'left';
-        set(ax,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
+        set(ax,    'fontsize', OPTIONS.fontsize,  'LineWidth', OPTIONS.LineWidth);
+
+        t1 = title(ax, 'a. Montage', 'FontSize', OPTIONS.fontsize + 10);
         close(hFig)
         
         ax = nexttile(); 
     
     else
-        t = tiledlayout(3,1); 
-        ax = nexttile([3 1]); 
+        t = tiledlayout(2, 2);
+        ax = nexttile([2 1]); 
     end
+    set(ax,    'fontsize', OPTIONS.fontsize,  'LineWidth',OPTIONS.LineWidth);
 
     sData = in_bst_data(sFile);
     iChannels_good = good_channel(sChannels.Channel, sData.ChannelFlag, 'nirs');
@@ -263,27 +322,26 @@ function plot_timecouse_channels(channel_file, sFile, OPTIONS)
     ylabel('Amplitude');
     
     if OPTIONS.plot_montage
-        t2 = title(sprintf('b. Recording for %s',OPTIONS.selected_channel));
+        t2 = title(sprintf('b. Recording for %s',OPTIONS.selected_channel), 'FontSize', OPTIONS.fontsize + 10);
 
         % HACK
         t2.Position = [314.315253982301,1.5512,0];
-        ax.TitleHorizontalAlignment = 'right';
+        %ax.TitleHorizontalAlignment = 'left';
     else
-        t2 = title(ax, sprintf('a. Recording for %s',OPTIONS.selected_channel));
+        t2 = title(ax, sprintf('a. Recording for %s',OPTIONS.selected_channel), 'FontSize', OPTIONS.fontsize + 10);
         ax.TitleHorizontalAlignment = 'left';
     end
     
-    set(ax,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
 
 
     if OPTIONS.plot_montage && ~isempty(OPTIONS.title)
-        sgt = title(t, sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
+        sgt = title(t, sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)), 'FontSize', OPTIONS.fontsize + 10);
         sgt.FontSize = 40; sgt.FontWeight = 'Bold';
     end
 
     set(gca,    'Color',[1,1,1]);
     set(gcf,    'color','w');
-    set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
+
 
 end
 
@@ -317,6 +375,8 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
         
 
         ax1 = nexttile(); 
+        set(ax1,    'fontsize', OPTIONS.fontsize,  'LineWidth',OPTIONS.LineWidth);
+
         hold on;
         plot(Time, HbO , 'DisplayName',[ sFiles_label{k} ' - HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_red(1,:));
         plot(Time, HbR , 'DisplayName',[ sFiles_label{k} ' - HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_blue(1,:));
@@ -324,7 +384,7 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
         xlim(OPTIONS.TimeSegment);
         ylim([-1.5 1.5]); yticks([-1 0 1])
                
-        title(sFiles_label{k})
+        title(sFiles_label{k}, 'FontSize', OPTIONS.fontsize + 10);
         ax1.TitleHorizontalAlignment = 'left'; 
         axes(end+1) = ax1;
         
@@ -359,14 +419,13 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
 
         set(gca,    'Color',[1,1,1]);
         set(gcf,    'color','w');
-        set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold','FontAngle','italic','LineWidth',OPTIONS.LineWidth);
         
         
     end
     linkaxes(axes,'xy')
     
     if ~isempty(OPTIONS.title )
-        sgt = sgtitle(sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)));
+        sgt = sgtitle(sprintf ('%s [%d, %ds]',OPTIONS.title , OPTIONS.TimeSegment(1), OPTIONS.TimeSegment(2)), 'FontSize', OPTIONS.fontsize + 10);
         sgt.FontSize = 25; sgt.FontWeight = 'Bold';
     end
 

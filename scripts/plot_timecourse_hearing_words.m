@@ -22,7 +22,7 @@ end
 %% Part 1. Plot Recording on the scalp
 
 channel_file = {'HW1/HW1_task_preproc_Hb_02/channel_nirsbrs.mat'};
-sFiles       = {'HW1/HW1_task_preproc_Hb_02/data_hb_250505_1246.mat'};
+sFiles = { 'HW1/HW1_task_preproc_Hb_02/data_hb_250507_2304.mat'};
 
 OPTIONS.selected_channel = 'S26D25';
 OPTIONS.TimeSegment      = [0 220];
@@ -43,23 +43,22 @@ sFiles       = {};
 
 
 sFiles{1} = {...
-    'HW1/HW1_task_preproc/results_NIRS_MNE_sources____HbO_250430_1118.mat', ...
-    'HW1/HW1_task_preproc/results_NIRS_MNE_sources____HbR_250430_1118.mat'};
-
+    'HW1/HW1_task_preproc/results_NIRS_MNE_sources____HbO_250430_1118_low.mat', ...
+    'HW1/HW1_task_preproc/results_NIRS_MNE_sources____HbR_250430_1118_low.mat'};
 sFiles{2} = {...
-    'HW1/HW1_task_preproc/results_NIRS_wMEM__smooth=0.6_DWT(j3__4__5__6__7__8__9)___HbO_250430_1326.mat', ...
-    'HW1/HW1_task_preproc/results_NIRS_wMEM__smooth=0.6_DWT(j3__4__5__6__7__8__9)___HbR_250430_1326.mat'};
+    'HW1/HW1_task_preproc/results_NIRS_wMEM__smooth=0.6_DWT(j3__4__5__6__7__8__9)___HbO_250430_1326_low.mat', ...
+    'HW1/HW1_task_preproc/results_NIRS_wMEM__smooth=0.6_DWT(j3__4__5__6__7__8__9)___HbR_250430_1326_low.mat'};
 
 sFiles_label                   = {'a. MNE', 'c. wMEM'}; 
 
-OPTIONS.TimeSegment = [0 220];
+OPTIONS.TimeSegment = [0 205];
 OPTIONS.title       = '';
 fig = figure('units','normalized','outerposition',[0 0 1 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_all.svg'));
 
 
-OPTIONS.TimeSegment = [110 140];
+OPTIONS.TimeSegment = [25 60];
 OPTIONS.title       = '';
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
@@ -95,21 +94,21 @@ close(fig)
 
 %% Figure 2. Figure of the averaged timecourse
 sFilesGRP       = {};
-
 sFiles{1} = {...
+    'HW1/HW1_task_preproc/results_NIRS_cMEM__timewindow__-10_to_30s__smooth=0.6___HbO_250430_1543.mat', ...
+    'HW1/HW1_task_preproc/results_NIRS_cMEM__timewindow__-10_to_30s__smooth=0.6___HbR_250430_1543.mat'};
+
+sFiles{2} = {...
     'HW1/HW1_task_preproc/results_NIRS_MNE_sources____HbO_250430_1118_low_winavg_250430_1333.mat', ...
     'HW1/HW1_task_preproc/results_NIRS_MNE_sources____HbR_250430_1118_low_winavg_250430_1333.mat'};
 
 
-sFiles{2} = {...
-    'HW1/HW1_task_preproc/results_NIRS_cMEM__timewindow__-10_to_30s__smooth=0.6___HbO_250430_1543.mat', ...
-    'HW1/HW1_task_preproc/results_NIRS_cMEM__timewindow__-10_to_30s__smooth=0.6___HbR_250430_1543.mat'};
 
 sFiles{3} = {...
     'HW1/HW1_task_preproc/results_NIRS_wMEM__smooth=0.6_DWT(j3__4__5__6__7__8__9)___HbO_250430_1326_low_winavg_250430_1333.mat', ...
     'HW1/HW1_task_preproc/results_NIRS_wMEM__smooth=0.6_DWT(j3__4__5__6__7__8__9)___HbR_250430_1326_low_winavg_250430_1333.mat'};
 
-sFiles_label                   = {'a. MNE','b. cMEM', 'c. wMEM'}; 
+sFiles_label                   = {'a. cMEM', 'b. MNE','c. wMEM'}; 
 
 
 OPTIONS.TimeSegment = [-10 30];
