@@ -1,5 +1,10 @@
+% Define Input
+
 
 SubjectName   = {'sub-02'};
+simulation_type       = 'task';
+SNR                   = 0.25;
+ROI_ID                = 2; 
 
 %figure_setting();
 
@@ -15,18 +20,37 @@ OPTIONS.color_blue =  [69,117,180 ;...
                       224,243,248] ./ 255;
 OPTIONS.LineWidth = 2.5;
 OPTIONS.fontsize  = 20;
-OPTIONS.output_folder = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs/Figure','Simulation','task');
+OPTIONS.atlas   = 'simulation_medium_left';
+OPTIONS.ROI_ID  = sprintf('FOV_copy.%d ',ROI_ID);
+OPTIONS.output_folder = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs/Figure','Simulation','task', sprintf('ROI-%d_SNR-%0.2fdB',ROI_ID,SNR));
+
+if ~exist(OPTIONS.output_folder )
+    mkdir(OPTIONS.output_folder)
+end
 
 
+%% 1. Gather all the files needed
+
+sSearch = bst_process('CallProcess', 'process_select_search', [], [], ...
+                                                    'search', [ '(( [name CONTAINS "simul |"] ', ....
+                                                                'AND', ....
+                                                                sprintf('[parent EQUALS "simulation_wake_%s_%0.2fdB_left_medium"]', simulation_type, SNR), ...
+                                                                '))' ] ...
+                                                                );
+sSearch = sSearch( contains({sSearch.Comment}, sprintf('FOV_copy.%d ',ROI_ID)));
 
 
 %% Part 1. Plot Recording on the scalp
-channel_file = {'sub-02/simulation_wake_task_0.25dB_left_medium/channel_nirsbrs.mat'};
-sFiles = { 'sub-02/simulation_wake_task_0.25dB_left_medium/data_sim_250420_1954.mat'};
 
+rec = sSearch( ~contains({sSearch.Comment}, 'low'));
+
+
+channel_file = {rec.ChannelFile};
+sFiles       =  {rec.FileName};
 
 OPTIONS.selected_channel = 'S6D14';
 OPTIONS.TimeSegment      = [0 320];
+
 if isfield(OPTIONS, 'vline')
     OPTIONS = rmfield(OPTIONS, 'vline');
 end
@@ -42,13 +66,15 @@ close(hFig)
 
 
 %% Figure 1 and 2. Figure of the entire signal. 
-sFiles       = {};
 
-sFiles{1} = {...
-                'sub-02/simulation_wake_task_0.25dB_left_medium/results_NIRS_MNE_sources_|_WL830_nm_250420_2001.mat' };
-sFiles{2} = {...
-                'sub-02/simulation_wake_task_0.25dB_left_medium/results_NIRS_wMEM__smooth=0.6_DWT(j1__2__3__4__5__6__7__8__9)__WL830nm_250420_2005.mat'};
+rec = sSearch( ~contains({sSearch.Comment}, 'low'));
+[sStudy, iStudy, iResults] = bst_get('ResultsForDataFile',rec.FileName);
+ResultFiles = sStudy.Result(iResults);
 
+
+sFiles    = {};
+sFiles{1} = {ResultFiles(contains({ResultFiles.Comment},{'MNE'})    & ~contains({ResultFiles.Comment},{'low'})).FileName };
+sFiles{2} = {ResultFiles(contains({ResultFiles.Comment},{'| nbo = 6 | alpha = 7 | norm = adaptive'})    & ~contains({ResultFiles.Comment},{'low'})).FileName };
 
 sFiles_label                   = {'a. MNE', 'c. wMEM'}; 
 
@@ -71,9 +97,10 @@ close(hFig)
 
 
 %% Plot Average 
+rec = sSearch( contains({sSearch.Comment}, 'Avg'));
 
-sFiles = { 'sub-02/simulation_wake_task_0.25dB_left_medium/data_sim_250420_1954_low_03_winavg_250420_1959.mat'};
-channel_file = {'sub-02/simulation_wake_task_0.25dB_left_medium/channel_nirsbrs.mat'};
+channel_file = {rec.ChannelFile};
+sFiles       =  {rec.FileName};
 
 OPTIONS.vline       = 10; OPTIONS.montage = 'WL830[tmp]';
 OPTIONS.selected_channel = {};
@@ -81,12 +108,6 @@ OPTIONS.selected_channel = {};
 hFig = plot_topography(SubjectName,channel_file{1}, sFiles{1}, OPTIONS);
 saveas(hFig,fullfile(OPTIONS.output_folder, 'topography_avg_HbO.svg'));
 
-
-%% =================================== todo
-
-
-sFiles = { 'sub-02/simulation_wake_task_0.25dB_left_medium/data_sim_250420_1954_low_03_winavg_250420_1959.mat'};
-channel_file = {'sub-02/simulation_wake_task_0.25dB_left_medium/channel_nirsbrs.mat'};
 
 OPTIONS.selected_channel = {};
 OPTIONS.TimeSegment = [-10 30];
@@ -119,9 +140,17 @@ saveas(hFig,fullfile(OPTIONS.output_folder, 'signal_head_avg.svg'));
 close(hFig)
 %% Figure 2. Figure of the averaged timecourse
 
-sFiles{1}   = {    'sub-02/simulation_wake_task_0.25dB_left_medium/results_NIRS_cMEM__timewindow__-10_to_30s__smooth=0.6__WL830nm_250420_1959.mat'};
-sFiles{2}   = {    'sub-02/simulation_wake_task_0.25dB_left_medium/results_NIRS_MNE_sources_|_WL830_nm_250420_2001_low_winavg_250420_2000.mat'};
-sFiles{3}   = {    'sub-02/simulation_wake_task_0.25dB_left_medium/results_NIRS_wMEM__smooth=0.6_DWT(j1__2__3__4__5__6__7__8__9)__WL830nm_250420_2005_low_winavg_250420_2004.mat'};
+rec = sSearch( contains({sSearch.Comment}, 'Avg'));
+[sStudy, iStudy, iResults] = bst_get('ResultsForDataFile',rec.FileName);
+ResultFiles = sStudy.Result(iResults);
+
+
+sFiles    = {};
+sFiles{1} = {ResultFiles(contains({ResultFiles.Comment},{'cMEM | timewindow: -10 to 30s | smooth=0.6 | WL830nm | | nbo = 4'})).FileName };
+sFiles{2} = {ResultFiles(contains({ResultFiles.Comment},{'MNE sources | WL830 nm | low(0.1Hz) | Avg'})).FileName };
+sFiles{3} = {ResultFiles(contains({ResultFiles.Comment},{'wMEM | smooth=0.6 DWT(j1  2  3  4  5  6  7  8  9) | WL830nm | | nbo = 6 | alpha = 7 | norm = adaptive | low(0.1Hz) | Avg: Task (6) [-10,30s] '})).FileName };
+sFiles{3} = {ResultFiles(contains({ResultFiles.Comment},{'wMEM | smooth=0.6 DWT(j1  2  3  4  5  6  7  8  9) | WL830nm | | nbo = 6 | alpha = 7 | norm = fixed | low(0.1Hz) | Avg'})).FileName };
+
 
 sFiles_label                   = {'a. cMEM', 'b. MNE',  'c. wMEM'}; 
 
@@ -134,6 +163,7 @@ hFig = figure('Units','pixels','Position', getFigureSize(14.6, 22.500));
 set(hFig, 'PaperPositionMode', 'auto');hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(hFig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cortex_avg.svg'));
+close(hFig)
 
 
 OPTIONS.vline       = 10;
@@ -287,7 +317,7 @@ function  plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS)
     sSubject    = bst_get('Subject',SubjectName{1});
     sCortex     = in_tess_bst(sSubject.Surface(sSubject.iCortex).FileName);
     Scouts      = sCortex.Atlas(strcmp({sCortex.Atlas.Name},'simulation_medium_left')).Scouts;
-    iRoi        = find(strcmpi({Scouts.Label}, 'FOV_copy.1'));
+    iRoi        = find(strcmpi({Scouts.Label}, strrep(OPTIONS.ROI_ID, ' ','')));
 
     ROI         = Scouts( iRoi );
     
@@ -372,7 +402,7 @@ function plot_brain( SubjectName, sFiles, sFiles_label, OPTIONS)
 
     sCortex     = in_tess_bst(sSubject.Surface(sSubject.iCortex).FileName);
     Scouts      = sCortex.Atlas(strcmp({sCortex.Atlas.Name},'simulation_medium_left')).Scouts;
-    iRoi        = find(strcmpi({Scouts.Label}, 'FOV_copy.1'));
+    iRoi        = find(strcmpi({Scouts.Label}, strrep(OPTIONS.ROI_ID, ' ','')));
 
     if isfield(OPTIONS, 'tag')
        tag =  OPTIONS.tag;
