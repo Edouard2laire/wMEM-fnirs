@@ -1,10 +1,11 @@
-sFiles = {  'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/data_block001.mat'};
 
+sFiles = {...
+    'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/data_block001_time_02.mat'};
 
-timewindow_full      = [5, 1123];
+timewindow_full      = [30, 1100-1];
 baselinewindow_full  = [250, 270];
 
-% Start a new report
+% Start a new reportm
 bst_report('Start', sFiles);
 
 if isempty(gcp('nocreate'))
@@ -22,11 +23,11 @@ bst_process('CallProcess', 'process_nst_wmne', sInput, [], ...
                                             'NoiseCov_recompute', 1, ...
                                             'TimeSegmentNoise',   baselinewindow_full);
 
-selected_scales = [1:10]; alpha_init = 7; neighborhood_order = 6; normalization = 'adaptive';
-compute_wMEM(sInput, timewindow_full, baselinewindow_full, neighborhood_order, selected_scales, alpha_init, normalization);
+% selected_scales = [1:10]; alpha_init = 7; neighborhood_order = 6; normalization = 'adaptive';
+% compute_wMEM(sInput, timewindow_full, baselinewindow_full, neighborhood_order, selected_scales, alpha_init, normalization);
 
-selected_scales = [3:9]; alpha_init = 7; neighborhood_order = 6; normalization = 'adaptive';
-compute_wMEM(sInput, timewindow_full, baselinewindow_full, neighborhood_order, selected_scales, alpha_init, normalization);
+% selected_scales = [3:9]; alpha_init = 7; neighborhood_order = 6; normalization = 'adaptive';
+% compute_wMEM(sInput, timewindow_full, baselinewindow_full, neighborhood_order, selected_scales, alpha_init, normalization);
 
 % Save and display report
 ReportFile = bst_report('Save', sFiles);
@@ -43,7 +44,7 @@ function sFilesMEM = compute_wMEM(sImput, timewindow_full, baselinewindow_full, 
                                         'BaselineHistory', {{'within'}}, ...
                                         "baseline_shuffle", 0, ...
                                         "BaselineSegment", baselinewindow_full , ...
-                                        'display',         0));
+                                        'display',         1));
     
     mem_option.clustering =  struct_copy_fields(mem_option.clustering, ...
                                          struct('neighborhood_order', neighborhood_order));

@@ -6,8 +6,8 @@ function averaged_segments = compute_power_spectrum(sFilesCortex)
     %new_frequency = logspace( log10(0.002), log10(1.5), 500);
     new_frequency = logspace( log10(0.002), log10(2), 500);
 
-    sleep_stage  = {'Wake';'N1';'N2';'N3';'REM'};
-    epi_activity = {'bursts', 'spikes_LR', 'spikes_RL', 'spikes_bilat', 'single_s'};
+    sleep_stage  = {'Wake'; 'N1';'N2';'N3';'REM'};
+    epi_activity = {'tapping', 'spikes_LR', 'spikes_RL', 'spikes_bilat', 'single_s'};
     
 
     
@@ -48,7 +48,7 @@ function averaged_segments = compute_power_spectrum(sFilesCortex)
     
         % Extend epi event to account for hemodynamic response 
         for iEvent = 1:length(epi_events)
-            epi_events(iEvent)  =  process_ft_wavelet('extendEvent', epi_events(iEvent), 30, 30  );
+            epi_events(iEvent)  =  process_ft_wavelet('extendEvent', epi_events(iEvent), 10,  20  );
         end
         
         if size(sData.TF,1) > 1
@@ -60,7 +60,7 @@ function averaged_segments = compute_power_spectrum(sFilesCortex)
         [sData.WDdata_avg, sData.time] = process_ft_wavelet('removeZero', sData.WDdata_avg,  sData.Time );
         %process_ft_wavelet('displayTF_Plane',sData.WDdata_avg, sData.time, struct_copy_fields(options,sData.Options));
     
-        splitting_events = [sleep_events,epi_events, motion_events]; 
+        splitting_events = [sleep_events, epi_events, motion_events]; 
     
         file_segment = process_ft_wavelet('exctractSegment',sData.WDdata_avg,sData.time, splitting_events , sDataHead.Events, sData.Freqs );
         for iSegment = 1:length(file_segment)
@@ -72,17 +72,17 @@ function averaged_segments = compute_power_spectrum(sFilesCortex)
     
     
     %% Average within each segment -  same ammount of averaging
-    
+    sleep_stage = {'Wake', 'tapping'};
     selected_segments   = segments(cellfun(@(x) any(strcmp(sleep_stage, x)), {segments.label}) & ...
-                                    [segments.duration] > 90, :);
+                                    [segments.duration] >= 20, :);
     
-    epoched_segments    = process_ft_wavelet('epochSegment', selected_segments,  60, 30);
+    epoched_segments    = process_ft_wavelet('epochSegment', selected_segments,  20, 10);
     averaged_segments   = process_ft_wavelet('averageWithinSegment',epoched_segments);
     resampled_segments  = process_ft_wavelet('resampleFrequency',averaged_segments, new_frequency);
     
     
     disp(' - - - - - - - - - - - -')
-    fprintf(' %d segments of 60s analyed  \n', length(resampled_segments));
+    fprintf(' %d segments of %ds analyed  \n', length(resampled_segments), epoched_segments(1).time(end));
     for iStage = 1:length(sleep_stage)
         segments_stage = resampled_segments( strcmp({resampled_segments.label}, sleep_stage{iStage}), : );
         fprintf('%s : %d segment. \n',  ...
@@ -91,7 +91,7 @@ function averaged_segments = compute_power_spectrum(sFilesCortex)
     end
     disp(' - - - - - - - - - - - -')
     
-    n_boot = 1000;
+    n_boot = 100;
     averaged_segments = repmat(resampled_segments(1), 1,length(sleep_stage)) ;
     is_included       = true(1,length(sleep_stage));
     
