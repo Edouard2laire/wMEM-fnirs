@@ -27,48 +27,65 @@ data_wMEM_select.label = repmat({'wMEM'}, height(data_wMEM_select), 1);
 data_all = [data_MNE ; data_wMEM_select];
 
 %%
-fig = figure('units','normalized','outerposition',[0 0 1 1]);
+ %%
+fig = figure('Units','pixels','Position', getFigureSize(20.8, 6));
+set(fig, 'PaperPositionMode', 'auto');
+
 clear g
 
-g(1,1) = plot_boxplot(data_all, {'DLE'},  'snr'); g(1,1).set_title('DLE (mm)');
-g(1,2) = plot_boxplot(data_all, {'SD'},  'snr'); g(1,2).set_title('SD (mm)');
-g(1,3) = plot_boxplot(data_all, {'correlation'},  'snr'); g(1,3).set_title('Correlation (%)');
+g(1,1) = plot_boxplot(data_all, {'DLE'},  'snr'); g(1,1).set_title('a. DLE (mm)');
+g(1,2) = plot_boxplot(data_all, {'SD'},  'snr'); g(1,2).set_title('b. SD (mm)');
+g(1,3) = plot_boxplot(data_all, {'correlation'},  'snr'); g(1,3).set_title('c. Correlation (%)');
 
+g(1,1).geom_hline("yintercept",5,"style", 'b--');
+g(1,2).geom_hline("yintercept",10,"style", 'b--');
+g(1,3).geom_hline("yintercept", 0.8,"style", 'b--');
+
+g(1,:).set_title('1. Localization of simulated oscillatory activity')
+g.set_text_options("base_size", 15, "label_scaling",1, "title_scaling",1.2, "big_title_scaling", 1.33 , "font", 'Times New Roman');
+
+g.draw();
+g(1,1).facet_axes_handles.YLim = [0, 40]; 
+g(1,2).facet_axes_handles.YLim = [0, 40];  
+g(1,3).facet_axes_handles.YLim = [0, 1];   
+
+
+% Remove the background of the box
+arrayfun(@(x)  arrayfun( @(y)set( y.box_handle, 'FaceAlpha', 0), x(1).results.stat_boxplot)  ,  g)
+pause(1)
+saveas(fig,fullfile(output_folder,'main_comparison_oscilation_a.svg'));
+close(fig)
 
 data_all_select =  extract_data(data_all,  @(data) data.DLE == 0);
 
-g(2,1) = plot_boxplot(data_all_select, {'DLE'},  'snr');            g(2,1).set_title('DLE (mm)');
-g(2,2) = plot_boxplot(data_all_select, { 'SD'},  'snr');            g(2,2).set_title('SD (mm)');
-g(2,3) = plot_boxplot(data_all_select, { 'correlation'},  'snr');   g(2,3).set_title('Correlation (%)');
+fig = figure('Units','pixels','Position', getFigureSize(20.8, 6));
+set(fig, 'PaperPositionMode', 'auto');
 
-g(1,1).geom_hline("yintercept",   5,  "style", 'b--', 'extent', 5);
-g(2,1).geom_hline("yintercept",   5,  "style", 'b--', 'extent', 5);
-g(1,2).geom_hline("yintercept",  10,  "style", 'b--', 'extent', 5);
-g(2,2).geom_hline("yintercept",  10,  "style", 'b--', 'extent', 5);
-g(1,3).geom_hline("yintercept", 0.8,  "style", 'b--', 'extent', 5);
-g(2,3).geom_hline("yintercept", 0.8,  "style", 'b--', 'extent', 5);
+clear g
 
-g.set_title('Localization of simulated oscilations')
+g(1,1) = plot_boxplot(data_all_select, {'DLE'},  'snr');  g(1,1).set_title('a. DLE (mm)');
+g(1,2) = plot_boxplot(data_all_select, { 'SD'},  'snr');  g(1,2).set_title('b. SD (mm)');
+g(1,3) = plot_boxplot(data_all_select, { 'correlation'},  'snr'); g(1,3).set_title('c. Correlation (%)');
+
+g(1,1).geom_hline("yintercept",5,"style", 'b--');
+g(1,2).geom_hline("yintercept",10,"style", 'b--');
+g(1,3).geom_hline("yintercept", 0.8,"style", 'b--');
+
+g(1,:).set_title('2. Localization of simulated oscillatory activity (DLE = 0)')
+g.set_text_options("base_size", 15, "label_scaling",1, "title_scaling",1.2, "big_title_scaling", 1.33 , "font", 'Times New Roman');
 
 g.draw();
-
 g(1,1).facet_axes_handles.YLim = [0, 40]; 
-g(2,1).facet_axes_handles.YLim = [0, 40];  
-
 g(1,2).facet_axes_handles.YLim = [0, 40];  
-g(2,2).facet_axes_handles.YLim = [0, 40];  
-
 g(1,3).facet_axes_handles.YLim = [0, 1];   
-g(2,3).facet_axes_handles.YLim = [0, 1];   
 
 % Remove the background of the box
 arrayfun(@(x)  arrayfun( @(y)set( y.box_handle, 'FaceAlpha', 0), x(1).results.stat_boxplot)  ,  g)
 
 
 pause(1)
-saveas(fig,fullfile(output_folder,'main_comparison_oscilation.svg'));
-
-
+saveas(fig,fullfile(output_folder,'main_comparison_oscilation_b.svg'));
+close(fig)
 
 
 %% Display AUC and ROC information
@@ -296,7 +313,6 @@ function g = plot_boxplot(data_MNE, metrics, color, x_split)
     g.stat_boxplot();
     g.set_names('x','Method','Column','','y','Value');
     g.no_legend();
-    g.set_text_options("base_size", 15, "font", 'Times New Roman');
     g.set_title(sprintf('Influence of operation order %s source localization', strjoin(unique(S.method),', ')));
 
 end

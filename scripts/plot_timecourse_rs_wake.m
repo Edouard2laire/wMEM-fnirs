@@ -14,7 +14,7 @@ OPTIONS.color_blue  =  [69, 117, 180 ;...
                        145, 191, 219; ...
                        224, 243, 248] ./ 255;
 OPTIONS.LineWidth   = 2.5;
-OPTIONS.fontsize    = 20;
+OPTIONS.fontsize    = 8;
 OPTIONS.output_folder = fullfile('/Users/edelaire1/Documents/Project/wMEM-fnirs/Figure','TFR');
 OPTIONS.TimeSegment      = [5 1120];
 
@@ -54,7 +54,7 @@ end
 OPTIONS.title = ''; OPTIONS.plot_montage = 0;
 
 
-hFig = figure('Units','pixels','Position', getFigureSize(45, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(20, 13));
 set(hFig, 'PaperPositionMode', 'auto');
 t = tiledlayout(2,2); 
 
@@ -70,7 +70,7 @@ hold on;
 plot(ax, Time, y , 'DisplayName',[ 'HbO'], 'LineWidth', OPTIONS.LineWidth, 'Color',OPTIONS.color_red(1,:));
     
 xlim(OPTIONS.TimeSegment);
-ylim([-1.5 1.5]); yticks([-1 0 1]), xticks(100:100:1100)
+ylim([-1.5 1.5]); yticks([-1 0 1]), 
 xlabel('Time(s)');
 ylabel('Amplitude');
 xlim([50, 1100]);
@@ -93,6 +93,7 @@ ax = nexttile();
 
 
 OPTIONS.colormap = 'jet';
+options_spectrum.wavelet.display.fontscale = 15;
 process_ft_wavelet('displayTF_Plane', wData,  Time, OPTIONS,  hFig, ax);
 title(ax,'c. Tine-frequency representation', 'FontSize', options_spectrum.wavelet.display.fontscale + 5)
 ax.TitleHorizontalAlignment = 'left';
@@ -108,7 +109,7 @@ saveas(hFig,fullfile(OPTIONS.output_folder, 'signal_all_theo.svg'));
 options_spectrum = struct();
 options_spectrum.colormap = 'jet';
 options_spectrum.clim = [0 0.25];
-options_spectrum.wavelet.display.fontscale = 20;
+options_spectrum.wavelet.display.fontscale = 15;
 options_spectrum.wavelet.display.TaegerK = 'yes';
 options_spectrum.color_map =  [  228,  26,  28  ; ...
                         55,  126, 184  ; ...
@@ -117,7 +118,7 @@ options_spectrum.color_map =  [  228,  26,  28  ; ...
                         255, 127,   0  ] ./ 255;
 
 options_spectrum.title_tf = 'd. Power-Spectrum for Motor Left (theoretical)';
-hFig = figure('Units','pixels','Position', getFigureSize(30, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(10, 7));
 set(hFig, 'PaperPositionMode', 'auto'); hold on;
 options_spectrum.hFig = hFig;
 
@@ -152,7 +153,7 @@ end
 OPTIONS.title = ''; OPTIONS.plot_montage = 1;
 
 
-hFig = figure('Units','pixels','Position', getFigureSize(45, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(20, 13));
 set(hFig, 'PaperPositionMode', 'auto');
 
 % 1. Plot Channel and timecourse
@@ -187,7 +188,7 @@ power_spectrums = compute_power_spectrum(sFilesTF{1});
 options_spectrum = struct();
 options_spectrum.colormap = 'jet';
 options_spectrum.clim = [0 0.25];
-options_spectrum.wavelet.display.fontscale = 20;
+options_spectrum.wavelet.display.fontscale = 8;
 options_spectrum.wavelet.display.TaegerK = 'yes';
 options_spectrum.color_map =  [  228,  26,  28  ; ...
                         55,  126, 184  ; ...
@@ -196,7 +197,7 @@ options_spectrum.color_map =  [  228,  26,  28  ; ...
                         255, 127,   0  ] ./ 255;
 
 options_spectrum.title_tf = 'd. Power-Spectrum for Motor Left (channels)';
-hFig = figure('Units','pixels','Position', getFigureSize(30, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(10, 7));
 set(hFig, 'PaperPositionMode', 'auto'); hold on;
 options_spectrum.hFig = hFig;
 
@@ -219,7 +220,7 @@ close(hFig)
 %% Timecourse for MNE
 
 
-hFig = figure('Units','pixels','Position', getFigureSize(45, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(11, 7));
 set(hFig, 'PaperPositionMode', 'auto');
 
 % 1. Plot Channel and timecourse
@@ -237,11 +238,11 @@ OPTIONS = process_ft_wavelet('select_frequency_band', 0.002, 2, OPTIONS);
 OPTIONS.colormap = 'jet';
 process_ft_wavelet('displayTF_Plane', squeeze(sData.TF)',  sData.Time, OPTIONS, hFig, ax);
 
-xlim(ax,[50, 1100]);
+xlim(ax,[50, 1100]); tmp = yticks(ax); tmp2 = yticklabels(ax); yticks(ax, tmp(1:2:end)); yticklabels(ax,tmp2(1:2:end));
 clim(ax, [0, 0.2]);
 colorbar(ax,'eastoutside');
 
-title(ax,'c. Tine-frequency representation', 'FontSize', options_spectrum.wavelet.display.fontscale + 5)
+title(ax,'c. Time-frequency representation', 'FontSize', options_spectrum.wavelet.display.fontscale)
 ax.TitleHorizontalAlignment = 'left';
 saveas(hFig,fullfile(OPTIONS.output_folder, 'signal_all_MNE.svg'));
 close(hFig)
@@ -251,7 +252,7 @@ power_spectrums = compute_power_spectrum(sFilesTF{2});
 options_spectrum = struct();
 options_spectrum.colormap = 'jet';
 options_spectrum.clim = [0 0.25];
-options_spectrum.wavelet.display.fontscale = 20;
+options_spectrum.wavelet.display.fontscale = 15;
 options_spectrum.wavelet.display.TaegerK = 'yes';
 options_spectrum.color_map =  [  228,  26,  28  ; ...
                         55,  126, 184  ; ...
@@ -260,7 +261,7 @@ options_spectrum.color_map =  [  228,  26,  28  ; ...
                         255, 127,   0  ] ./ 255;
 
 options_spectrum.title_tf = 'd. Power-Spectrum for Motor Left (MNE)';
-hFig = figure('Units','pixels','Position', getFigureSize(30, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(10, 7));
 set(hFig, 'PaperPositionMode', 'auto'); hold on;
 options_spectrum.hFig = hFig;
 
@@ -285,7 +286,7 @@ close(fig)
 %% Timecourse for wMEM
 
 
-hFig = figure('Units','pixels','Position', getFigureSize(45, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(20, 13));
 set(hFig, 'PaperPositionMode', 'auto');
 
 % 1. Plot Channel and timecourse
@@ -317,7 +318,7 @@ power_spectrums = compute_power_spectrum(sFilesTF{3});
 options_spectrum = struct();
 options_spectrum.colormap = 'jet';
 options_spectrum.clim = [0 0.25];
-options_spectrum.wavelet.display.fontscale = 20;
+options_spectrum.wavelet.display.fontscale = 15;
 options_spectrum.wavelet.display.TaegerK = 'yes';
 options_spectrum.color_map =  [  228,  26,  28  ; ...
                         55,  126, 184  ; ...
@@ -326,7 +327,7 @@ options_spectrum.color_map =  [  228,  26,  28  ; ...
                         255, 127,   0  ] ./ 255;
 
 options_spectrum.title_tf = 'd. Power-Spectrum for Motor Left (wMEM)';
-hFig = figure('Units','pixels','Position', getFigureSize(30, 20));
+hFig = figure('Units','pixels','Position', getFigureSize(10, 7));
 set(hFig, 'PaperPositionMode', 'auto'); hold on;
 options_spectrum.hFig = hFig;
 fig = process_ft_wavelet('displayPowerSpectrum',  cat(2,power_spectrums.WData)', ...
@@ -373,7 +374,7 @@ end
 options_spectrum = struct();
 options_spectrum.colormap = 'jet';
 options_spectrum.clim = [0 0.25];
-options_spectrum.wavelet.display.fontscale = 20;
+options_spectrum.wavelet.display.fontscale = 15;
 options_spectrum.wavelet.display.TaegerK = 'yes';
 options_spectrum.color_map =  [  228,  26,  28  ; ...
                         55,  126, 184  ; ...
@@ -611,9 +612,9 @@ function  plot_timecourse_cortex(SubjectName, sFiles, sFiles_label, OPTIONS)
     set(hDestAxes, 'CameraViewAngle', 6.6203);
         
 
-    title(ax, 'a. Cortex', 'FontSize', OPTIONS.fontsize + 5);
+    title(ax, 'a. Cortex', 'FontSize', OPTIONS.fontsize);
     ax.TitleHorizontalAlignment = 'left';
-    axis(ax, 'off');
+    axis(ax, 'equal','off');
 
     axes = [];
     for k = 1:length(sFiles)
@@ -676,7 +677,7 @@ function  plot_timecourse_cortex(SubjectName, sFiles, sFiles_label, OPTIONS)
 
         set(gca,    'Color',[1,1,1]);
         set(gcf,    'color','w');
-        set(gca,    'fontsize', OPTIONS.fontsize,'FontWeight','Bold', 'LineWidth',OPTIONS.LineWidth);
+        set(gca,    'fontsize', OPTIONS.fontsize, 'LineWidth',1);
         
         
     end

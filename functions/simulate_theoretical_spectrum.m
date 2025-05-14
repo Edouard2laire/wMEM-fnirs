@@ -120,7 +120,7 @@ function averaged_segments = compute_spectrum(sData, wData, options)
     selected_segments   = segments(cellfun(@(x) any(strcmp(sleep_stage, x)), {segments.label}) & ...
                                     [segments.duration] >= 20, :);
     
-    epoched_segments    = process_ft_wavelet('epochSegment', selected_segments,  20, 10);
+    epoched_segments    = process_ft_wavelet('epochSegment', selected_segments,  20, 0);
     averaged_segments   = process_ft_wavelet('averageWithinSegment',epoched_segments);
     resampled_segments  = process_ft_wavelet('resampleFrequency',averaged_segments, new_frequency);
     
@@ -135,7 +135,7 @@ function averaged_segments = compute_spectrum(sData, wData, options)
     end
     disp(' - - - - - - - - - - - -')
     
-    n_boot = 1000;
+    n_boot = 100;
     averaged_segments = repmat(resampled_segments(1), 1,length(sleep_stage)) ;
     is_included       = true(1,length(sleep_stage));
     

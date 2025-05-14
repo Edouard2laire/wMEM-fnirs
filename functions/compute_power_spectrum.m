@@ -76,13 +76,13 @@ function averaged_segments = compute_power_spectrum(sFilesCortex)
     selected_segments   = segments(cellfun(@(x) any(strcmp(sleep_stage, x)), {segments.label}) & ...
                                     [segments.duration] >= 20, :);
     
-    epoched_segments    = process_ft_wavelet('epochSegment', selected_segments,  20, 10);
+    epoched_segments    = process_ft_wavelet('epochSegment', selected_segments,  20, 0);
     averaged_segments   = process_ft_wavelet('averageWithinSegment',epoched_segments);
     resampled_segments  = process_ft_wavelet('resampleFrequency',averaged_segments, new_frequency);
     
     
     disp(' - - - - - - - - - - - -')
-    fprintf(' %d segments of %ds analyed  \n', length(resampled_segments), epoched_segments(1).time(end));
+    fprintf(' %d segments of %ds analyed  \n', length(resampled_segments), round(epoched_segments(1).time(end)));
     for iStage = 1:length(sleep_stage)
         segments_stage = resampled_segments( strcmp({resampled_segments.label}, sleep_stage{iStage}), : );
         fprintf('%s : %d segment. \n',  ...
