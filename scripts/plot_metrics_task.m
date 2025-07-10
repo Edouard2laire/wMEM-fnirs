@@ -193,6 +193,13 @@ arrayfun(@(x) set(x.box_handle, 'FaceAlpha', 0),  g(1).results.stat_boxplot)
 pause(1)
 saveas(fig, fullfile(output_folder,'annex_comparison_simulation_task_cmem.svg'));
 
+%% Perform some stat and display: 
+
+grpstats(data_all_select(:,{'label','snr', 'DLE','SD','correlation'}),{'label','snr'},'median')
+grpstats(data_all_select(:,{'label','snr', 'DLE','SD','correlation'}),{'label'},'median')
+
+data_all_select2 =  extract_data(data_all_select,  @(data) data.DLE == 0);
+grpstats(data_all_select2(:,{'label','snr', 'DLE','SD','correlation'}),{'label'},'median')
 
 
 %% Function definitions
