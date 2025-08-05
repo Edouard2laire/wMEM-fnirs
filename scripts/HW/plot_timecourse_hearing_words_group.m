@@ -9,17 +9,17 @@ sFiles{1}   = {'Group_analysis/@intra/results_average_250729_1710.mat'};
 OPTIONS     = get_options();
 OPTIONS.TimeSegment = [-10 30];
 OPTIONS.title       = '';
-OPTIONS.vline       = 13;
+OPTIONS.vline       = 16.5;
 OPTIONS.norm_factor = 1/100;
 
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_BOLD_left';
 sFiles_label                   = {'a. BOLD | left'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_BOLD_left_cortex_avg.svg'));
 
 
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_BOLD_right';
 sFiles_label                   = {'b. BOLD | right'}; 
 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
@@ -28,31 +28,33 @@ saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_BOLD_right_cort
 
 
 OPTIONS.orientation = 'left';
+OPTIONS.ROI = 'group_BOLD_left';
 plot_brain(SubjectName, sFiles, sFiles_label,  OPTIONS)
 
 
 OPTIONS.orientation = 'right';
+OPTIONS.ROI = 'group_BOLD_right';
 plot_brain(SubjectName, sFiles, sFiles_label,  OPTIONS)
 
 %% Figure 1.3 Figure of the averaged cMEM
 
 sFiles{1} = {...
-                'Group_analysis/@intra/results_average_250729_1723.mat', ...
-                'Group_analysis/@intra/results_average_250729_1726.mat'};
+    'Group_analysis/@intra/results_average_250729_1723.mat', ...
+    'Group_analysis/@intra/results_average_250729_1726.mat'};
 
 OPTIONS     = get_options();
 OPTIONS.TimeSegment = [-10 30];
 OPTIONS.title       = '';
-OPTIONS.vline       = 13;
+OPTIONS.vline       = 16.5;
 
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_cMEM_left';
 sFiles_label                   = {'a. left'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 OPTIONS.norm_factor = plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cMEM_left_cortex_avg.svg'));
 
 
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_cMEM_right';
 sFiles_label                   = {'b. right'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
@@ -60,13 +62,13 @@ saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_cMEM_right_cort
 
 
 OPTIONS.orientation = 'left';
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_cMEM_left';
 OPTIONS.tag = {'HbO', 'HbR'};
 plot_brain(SubjectName, sFiles, {'cMEM'},  OPTIONS)
 
 
 OPTIONS.orientation = 'right';
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_cMEM_right';
 OPTIONS.tag = {'HbO', 'HbR'};
 plot_brain(SubjectName, sFiles, {'cMEM'},  OPTIONS)
 
@@ -74,22 +76,22 @@ plot_brain(SubjectName, sFiles, {'cMEM'},  OPTIONS)
 %% Figure 1.4 Figure of the averaged MNE
 
 sFiles{1} = {...
-    'Group_analysis/@intra/results_average_250729_1716.mat', ...
-    'Group_analysis/@intra/results_average_250729_1719.mat'};
+    'Group_analysis/@intra/results_average_250731_1457.mat', ...
+    'Group_analysis/@intra/results_average_250731_1458.mat'};
 
 OPTIONS     = get_options();
 OPTIONS.TimeSegment = [-10 30];
 OPTIONS.title       = '';
-OPTIONS.vline       = 13;
+OPTIONS.vline       = 16.5;
 
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_MNE_left';
 sFiles_label                   = {'a. left'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 OPTIONS.norm_factor = plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_MNE_left_cortex_avg.svg'));
 
 
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_MNE_right';
 sFiles_label                   = {'b. right'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
@@ -97,13 +99,13 @@ saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_MNE_right_corte
 
 
 OPTIONS.orientation = 'left';
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_MNE_left';
 OPTIONS.tag = {'HbO', 'HbR'};
 plot_brain(SubjectName, sFiles, {'MNE'},  OPTIONS)
 
 
 OPTIONS.orientation = 'right';
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_MNE_right';
 OPTIONS.tag = {'HbO', 'HbR'};
 plot_brain(SubjectName, sFiles, {'MNE'},  OPTIONS)
 
@@ -117,16 +119,16 @@ sFiles{1} = {...
 OPTIONS     = get_options();
 OPTIONS.TimeSegment = [-10 30];
 OPTIONS.title       = '';
-OPTIONS.vline       = 13;
+OPTIONS.vline       = 16.5;
 
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_wMEM_left';
 sFiles_label                   = {'a. left'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 OPTIONS.norm_factor = plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
 saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_wMEM_left_cortex_avg.svg'));
 
 
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_wMEM_right';
 sFiles_label                   = {'b. right'}; 
 fig = figure('units','normalized','outerposition',[0 0 0.35 1]); hold on;
 plot_timecourse(SubjectName, sFiles, sFiles_label, OPTIONS);
@@ -134,13 +136,13 @@ saveas(fig,fullfile(OPTIONS.output_folder, 'reconstructed_signal_wMEM_right_cort
 
 
 OPTIONS.orientation = 'left';
-OPTIONS.ROI = 'group_left_intersect';
+OPTIONS.ROI = 'group_wMEM_left';
 OPTIONS.tag = {'HbO', 'HbR'};
 plot_brain(SubjectName, sFiles, {'wMEM'},  OPTIONS)
 
 
 OPTIONS.orientation = 'right';
-OPTIONS.ROI = 'group_interesct_right';
+OPTIONS.ROI = 'group_wMEM_right';
 OPTIONS.tag = {'HbO', 'HbR'};
 plot_brain(SubjectName, sFiles, {'wMEM'},  OPTIONS)
 
@@ -173,10 +175,9 @@ end
 function DisplayUnits = getDisplayUnit(sFile)
     
 
-    sData = in_bst_results(sFile{iMap}, 1, 'DisplayUnits');
+    sData = in_bst_results(sFile, 1, 'DisplayUnits');
     DisplayUnits =  sData.DisplayUnits;
     
-
 end
 
 
@@ -288,6 +289,9 @@ function plot_brain( SubjectName, sFiles, sFiles_label, OPTIONS)
 
     sSubject    = bst_get('Subject',SubjectName{1});
 
+    sCortex     = in_tess_bst(sSubject.Surface(sSubject.iCortex).FileName);
+    Scouts      = sCortex.Atlas(strcmp({sCortex.Atlas.Name},'User scouts')).Scouts;
+    iRoi        = find(strcmpi({Scouts.Label}, strrep(OPTIONS.ROI, ' ','')));
 
     for k = 1:length(sFiles)
         
@@ -296,13 +300,16 @@ function plot_brain( SubjectName, sFiles, sFiles_label, OPTIONS)
         for iMap = 1:length(sFile)
 
             sMap = view_surface_data(sSubject.Surface(sSubject.iCortex).FileName, sFile{iMap}, 'NIRS', 'NewFigure');
+            panel_surface('SetSurfaceSmooth', sMap, 1, 0.3, 0)
             if isfield(OPTIONS, 'tag')
                tag =  OPTIONS.tag{iMap};
             else
                 tag = getDisplayUnit(sFile{iMap});
             end
 
-            panel_time('SetCurrentTime',  OPTIONS.vline)
+            panel_time('SetCurrentTime',  OPTIONS.vline);
+            panel_scout('SetSelectedScouts', iRoi)
+    
             panel_scout('SetScoutTextVisible', 0, 1);
             panel_scout('SetScoutTransparency', 1);
             bst_colormaps('SetColormapName',      'nirs', "jet");
