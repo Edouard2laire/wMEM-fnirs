@@ -22,22 +22,22 @@ if ~exist(OPTIONS.output_folder)
     mkdir(OPTIONS.output_folder)
 end
 
-
-sFiles{1}       = { 'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/data_hb_250506_1459.mat'};
-sFilesTF{1}     = { 'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr_Hb/timefreq_wavelet_250509_1310.mat'};
+sFiles{1}  = {  'sub-01/sub-01_task-tapping_run-01_preproc_Hb/data_hb_250902_1650.mat'};
+sFilesTF{1} = { 'sub-01/sub-01_task-tapping_run-01_preproc_Hb/timefreq_wavelet_250903_1203.mat'};
 
 
 sFiles{2} = {...
-                'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_MNE_sources____HbO_250509_1324.mat', ...
-                'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_MNE_sources____HbR_250509_1324.mat'};
-sFilesTF{2}  = {'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/timefreq_wavelet_250509_1334.mat'};
+    'sub-01/sub-01_task-tapping_run-01_preproc/results_NIRS_MNE_sources____HbO_250902_1631.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_preproc/results_NIRS_MNE_sources____HbR_250902_1631.mat'};
+
+sFilesTF{2} = { 'sub-01/sub-01_task-tapping_run-01_preproc/timefreq_wavelet_250902_1644.mat'};
 
 
 sFiles{3} = {...
-                        'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbO_250508_1951.mat', ...
-                        'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbR_250508_1951.mat'};
+    'sub-01/sub-01_task-tapping_run-01_preproc/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbO_250902_1638.mat', ...
+    'sub-01/sub-01_task-tapping_run-01_preproc/results_NIRS_wMEM___smooth=0.6_DWT_j1___2___3___4___5___6___7___8___9__10_____HbR_250902_1638.mat'};
 
-sFilesTF{3}   = { 'sub-01/sub-01_task-tapping_run-01_dOD__motioncorr_band_scr/timefreq_wavelet_250509_1349.mat'};
+sFilesTF{3} = {'sub-01/sub-01_task-tapping_run-01_preproc/timefreq_wavelet_250902_1647.mat'};
 
 sFilesLabel     = { 'Channel',  'Cortex (MNE)', 'Cortex (wMEM)'};
 %% Get theoretical spectrum
@@ -215,7 +215,7 @@ hLegend = findobj(hFig, 'Type', 'Legend');
 hLegend.Title.String = '';
 hLegend.Location = 'best';
 
-saveas(hFig,fullfile(OPTIONS.output_folder, 'power_spectrum_head.svg'));
+saveas(hFig,fullfile(OPTIONS.output_folder, 'power_spectrum_head_HbO.svg'));
 close(hFig)
 %% Timecourse for MNE
 
