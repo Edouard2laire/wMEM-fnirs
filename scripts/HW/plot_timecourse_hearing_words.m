@@ -1,5 +1,5 @@
 
-SubjectName   = {'HW1'};
+SubjectName   = {'HW1'}; %% Subject02
 
 
 OPTIONS = struct();
