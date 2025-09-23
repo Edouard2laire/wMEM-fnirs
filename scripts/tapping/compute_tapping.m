@@ -3,20 +3,40 @@
 % Start a new report
 bst_report('Start');
 
-    sFile = { 'Sub04_ZapAnd_PAS10/@rawSub04_PAS10_Pre_Tapping/data_0raw_Sub04_PAS10_Pre_Tapping.mat'};
-    
+
+    % sFiles = { 'Sub04_ZapAnd_PAS10/@rawSub04_PAS10_Pre_Tapping/data_0raw_Sub04_PAS10_Pre_Tapping.mat'};
+    % options = struct();
+    % options.SubjectName = 'Sub04_ZapAnd_PAS10';
+    % options.timewindow                  = [10 1140];
+    % options.reconstructionTimewindow    = [30 1130];
+    % options.reconstructionBaseline      = [912, 932];
+    % options.condition_name = 'Sub04_cond-PAS10_task-tapping_run-pre_preproc';
+    % options.TrialStatus = listTrials(20, [1]);
+
+    %compute(sFile, options);
+
+    % sFiles = { 'Sub20_HanDev_PAS25/@rawSub20_PAS25_PreTapping/data_0raw_Sub20_PAS25_PreTapping.mat'};
+    % options = struct();
+    % options.SubjectName = 'Sub20_HanDev_PAS25';
+    % options.timewindow                  = [60 1170];
+    % options.reconstructionTimewindow    = [65 1160];
+    % options.reconstructionBaseline      = [1100, 1120];
+    % options.condition_name = 'Sub20_cond-PAS25_task-tapping_run-pre_preproc';
+    % options.TrialStatus = listTrials(20, [2, 3]);
+    % 
+    % compute(sFiles, options);
+
+
+    sFiles = { 'Sub22_EmaMeh_PAS25/@rawEmaMeh_PAS25_PreTapping/data_0raw_EmaMeh_PAS25_PreTapping.mat'};
     options = struct();
-    options.SubjectName = 'Sub04_ZapAnd_PAS10';
-    options.timewindow                  = [10 1140];
-    options.reconstructionTimewindow    = [30 1130];
-    options.reconstructionBaseline      = [912, 932];
-    options.condition_name = 'Sub04_cond-PAS10_task-tapping_run-pre_preproc';
-    options.TrialStatus = listTrials(20, [1]);
+    options.SubjectName = 'Sub22_EmaMeh_PAS25';
+    options.timewindow                  = [20 1110];
+    options.reconstructionTimewindow    = [40 1105];
+    options.reconstructionBaseline      = [40, 60];
+    options.condition_name = 'Sub22_cond-PAS25_task-tapping_run-pre_preproc';
+    options.TrialStatus = listTrials(20, [5, 7, 19,  20]);
 
-    compute(sFile, options);
-
-
-
+    compute(sFiles, options);
 %% Save and display report
 ReportFile = bst_report('Save', []);
 bst_report('Open', ReportFile);
@@ -49,21 +69,26 @@ function renameEvents(sFile, options)
 
     assert(isfield(options, 'reconstructionTimewindow') && ~isempty(options.timewindow), 'Missing options field: reconstructionTimewindow')
 
-
     % deal with stupid event naming
     sData = in_bst_data(sFile{1});
-    
-    if any(strcmpi({sData.F.events.label}, 'Wake'))
+    if any(strcmp({sData.F.events.label}, 'Wake')) && any(strcmp({sData.F.events.label}, 'tapping'))
         return;
     end
 
-    bst_process('CallProcess', 'process_evt_extended', sFile, [], ...
-        'eventname',  'PreTapping, PostTapping', ...
-        'timewindow', [0, 10]);
+    eventsName = {'PreTapping', 'PostTapping', 'Tapping'};
+    for iEvent = 1:length(eventsName)
+        bst_process('CallProcess', 'process_evt_rename', sFile, [], ...
+            'src', eventsName{iEvent},  ...
+            'dest',  'tapping');
+    
+    end
 
-    bst_process('CallProcess', 'process_evt_rename', sFile, [], ...
-        'src',   'PreTapping, PostTapping', ...
-        'dest',  'tapping');
+    sData = in_bst_data(sFile{1});
+    assert(any(strcmp({sData.F.events.label}, 'tapping')));
+
+    bst_process('CallProcess', 'process_evt_extended', sFile, [], ...
+        'eventname',  'tapping', ...
+        'timewindow', [0, 10]);
 
     % Process: Duplicate tapping events
     bst_process('CallProcess', 'process_evt_merge', sFile, [], ...
@@ -76,14 +101,17 @@ function renameEvents(sFile, options)
         'eventname',  'tapping/start', ...
         'method', 1);
 
-    sData.F.events(end+1) = sData.F.events(end);
-    sData.F.events(end).label = 'Wake';
-    sData.F.events(end).times = options.reconstructionTimewindow';
-    sData.F.events(end).epochs = [1];
-    sData.F.events(end).color = [0.9, 0.5, 0.7];
+    if ~any(strcmp({sData.F.events.label}, 'Wake'))
+        sData = in_bst_data(sFile{1});
 
-    bst_save(file_fullpath(sFile{1}), sData)
-
+        sData.F.events(end+1) = sData.F.events(end);
+        sData.F.events(end).label = 'Wake';
+        sData.F.events(end).times = options.reconstructionTimewindow';
+        sData.F.events(end).epochs = [1];
+        sData.F.events(end).color = [0.9, 0.5, 0.7];
+    
+        bst_save(file_fullpath(sFile{1}), sData)
+    end
 end
 
 function sPreproc = preprocess(sRaw, options)
@@ -103,17 +131,11 @@ function sPreproc = preprocess(sRaw, options)
     % Process: Detect bad channels
     sRaw = bst_process('CallProcess', 'process_nst_detect_bad', sRaw, [], ...
         'option_sci',                   0, ...
-        'sci_threshold',                80, ...
-        'power_threshold',              10, ...
+        'option_remove_saturating',     0, ...
+        'option_separation_filtering',  0, ...
         'option_coefficient_variation', 1, ...
         'coefficient_variation',        5, ...
-        'option_remove_saturating',     0, ...
-        'option_max_sat_prop',          10, ...
-        'option_min_sat_prop',          10, ...
-        'option_separation_filtering',  0, ...
-        'option_separation',            [0, 5], ...
-        'auxilary_signal',              3, ...  % Remove all
-        'option_keep_unpaired',         0);
+        'auxilary_signal',              3);
     
     % Process: Conversion to dOD
     
